@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>ระบบ Quote ราคางานวิจัย</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#16191d; --muted:#6b7280; --line:#e3e6ea;
+    --brand:#1f5f4f; --brand-soft:#e8f2ee; --accent:#b8763e; --danger:#b3392f;
+    --head:#dce8f5; --fill:#fdf3e0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Sarabun","IBM Plex Sans Thai","Noto Sans Thai",-apple-system,"Segoe UI",Tahoma,sans-serif;
+    font-size:15px; line-height:1.5}
+  header{background:var(--brand); color:#fff; padding:14px 20px}
+  header h1{margin:0; font-size:18px; font-weight:700}
+  header p{margin:2px 0 0; font-size:13px; opacity:.8}
+  nav{display:flex; gap:4px; background:#184a3e; padding:0 12px}
+  nav button{background:none; border:0; color:#cfe3dc; padding:11px 16px; cursor:pointer;
+    font-family:inherit; font-size:14px; font-weight:600; border-bottom:3px solid transparent}
+  nav button.on{color:#fff; border-bottom-color:var(--accent)}
+  main{max-width:1240px; margin:0 auto; padding:20px 16px 80px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px}
+  .card h2{margin:0 0 14px; font-size:15px; font-weight:700; color:var(--brand);
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .card h2 small{font-weight:400; color:var(--muted); font-size:12.5px}
+  label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:4px; font-weight:600}
+  input,select{width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px;
+    font-family:inherit; font-size:14px; background:#fff; color:var(--ink)}
+  input:focus,select:focus{outline:2px solid var(--brand-soft); border-color:var(--brand)}
+  input[type=number]{text-align:right; font-variant-numeric:tabular-nums}
+  .grid3{display:grid; grid-template-columns:1.4fr 1.4fr .8fr; gap:12px}
+  @media(max-width:700px){.grid3{grid-template-columns:1fr}}
+
+  .vtabs{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:14px;
+    padding-bottom:12px; border-bottom:1px solid var(--line)}
+  .vtab{background:#f2f4f5; border:1px solid var(--line); color:var(--muted); padding:7px 13px;
+    border-radius:20px; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap}
+  .vtab.on{background:var(--brand); border-color:var(--brand); color:#fff}
+  .vtab .dot{opacity:.75; font-weight:400; font-size:12px}
+
+  .scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table.sheet{width:100%; border-collapse:collapse; font-size:13.5px; min-width:860px}
+  table.sheet th{background:var(--head); color:#28405c; text-align:right; font-weight:700;
+    padding:7px 8px; border:1px solid #cdd9e6; font-size:12.5px; white-space:nowrap}
+  table.sheet th.l{text-align:left}
+  table.sheet td{padding:4px 6px; border:1px solid var(--line); vertical-align:middle}
+  table.sheet td.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+  table.sheet td.calc{background:#fbfcfd; color:#3d4650}
+  table.sheet input{border-color:transparent; background:transparent; padding:6px 7px}
+  table.sheet input:hover{border-color:var(--line)}
+  table.sheet input.fill{background:var(--fill); border-color:#f0dcc0}
+  table.sheet tr.sec td{background:var(--head); font-weight:700; color:#28405c; padding:7px 8px}
+  table.sheet tr.tot td{background:var(--brand-soft); font-weight:700; color:var(--brand); font-size:14.5px; padding:9px 8px}
+  table.sheet td.d{background:var(--fill)}
+  table.sheet td.mainc{box-shadow:inset 0 0 0 2px var(--brand-soft)}
+  .note{font-size:13.5px; padding:7px 11px; border-left:3px solid var(--line); margin-bottom:6px; background:#fafbfc}
+  .note b{color:var(--brand)}
+  .up{color:#b3392f} .down{color:#1f7a4f}
+  .addbtn{margin-left:10px; padding:2px 10px; font-size:12px; border-radius:5px; background:#fff;
+    border:1px solid #b6c7d8; color:#28405c; cursor:pointer; font-family:inherit; font-weight:600; vertical-align:middle}
+  .addbtn:hover{background:var(--brand); border-color:var(--brand); color:#fff}
+  th .colhead{display:flex; gap:2px; align-items:center; justify-content:flex-end}
+  th .colhead select{min-width:104px; font-size:12.5px; padding:4px 6px; font-weight:600}
+  .w-name{min-width:190px} .w-n{width:92px} .w-money{width:110px}
+
+  button.btn{background:var(--brand); color:#fff; border:0; padding:9px 16px; border-radius:7px;
+    font-family:inherit; font-size:14px; font-weight:600; cursor:pointer}
+  button.btn:hover{filter:brightness(1.1)}
+  button.ghost{background:#fff; color:var(--brand); border:1px solid var(--brand)}
+  button.mini{background:#fff; border:1px solid var(--line); color:var(--muted); padding:6px 11px;
+    border-radius:6px; font-family:inherit; font-size:13px; cursor:pointer}
+  button.mini:hover{border-color:var(--brand); color:var(--brand)}
+  button.x{background:none; border:0; color:#c3c8cf; font-size:18px; cursor:pointer; padding:0 4px; line-height:1}
+  button.x:hover{color:var(--danger)}
+
+  table.list{width:100%; border-collapse:collapse; font-size:14px}
+  table.list th{text-align:left; padding:9px 10px; background:#fafbfc; border-bottom:2px solid var(--line);
+    font-size:12px; color:var(--muted)}
+  table.list td{padding:9px 10px; border-bottom:1px solid var(--line)}
+  table.list td.num,table.list th.num{text-align:right; font-variant-numeric:tabular-nums}
+  table.list td.act{white-space:nowrap}
+  table.list tr.hi td{background:var(--brand-soft)}
+  .empty{text-align:center; padding:34px 20px; color:var(--muted)}
+  .pill{display:inline-block; background:var(--brand-soft); color:var(--brand); padding:2px 9px;
+    border-radius:20px; font-size:12px; font-weight:600}
+  .bar{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .spacer{flex:1}
+  .muted{color:var(--muted); font-size:12.5px}
+  .toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:11px 22px; border-radius:8px; font-size:14px; opacity:0; pointer-events:none; transition:.25s; z-index:99}
+  .toast.on{opacity:1}
+  .warn{background:#fdf6ec; border:1px solid #f0dcc0; color:#8a5a1e; padding:9px 12px;
+    border-radius:7px; font-size:13px; margin-bottom:14px}
+  .hide{display:none !important}
+  .filebar{border-radius:9px; padding:10px 14px; margin-bottom:16px; font-size:13.5px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .filebar.ok{background:#eaf5f0; border:1px solid #bfdccf; color:#1c5c46}
+  .filebar.warn{background:#fdf6ec; border:1px solid #f0dcc0; color:#8a5a1e}
+  .filebar button{background:#fff; border:1px solid currentColor; color:inherit; padding:5px 12px;
+    border-radius:6px; font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer}
+  .filebar button:hover{background:currentColor; filter:none}
+  .big{font-size:26px; font-weight:700; color:var(--brand); font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ระบบ Quote ราคางานวิจัย</h1>
+  <p>ทีม × manday + ค่าตอบแทน RD + ค่าใช้จ่ายอื่น • เทียบได้ถึง 10 variation • เก็บประวัติ quote
+    <span style="opacity:.65; margin-left:8px">v1.0 · 14 ส.ค. 2026</span></p>
+</header>
+
+<nav>
+  <button id="tab-new" class="on" onclick="showTab('new')">สร้าง Quote</button>
+  <button id="tab-hist" onclick="showTab('hist')">ประวัติ Quote <span id="histCount" class="pill">0</span></button>
+  <button id="tab-set" onclick="showTab('set')">ตั้งค่าทีม / เรท</button>
+</nav>
+
+<main>
+
+<div id="fileBar" class="filebar"></div>
+
+<!-- ══════════ NEW QUOTE ══════════ -->
+<section id="pane-new">
+
+  <div class="card">
+    <h2>ข้อมูลงาน</h2>
+    <div class="grid3">
+      <div><label>ชื่อบริษัท / ลูกค้า</label><input id="qCompany" placeholder="เช่น การประปานครหลวง"></div>
+      <div><label>ชื่อโปรเจกต์</label><input id="qProject" placeholder="เช่น MHJ กปน"></div>
+      <div><label>วันที่บันทึก</label><input id="qDate" type="date"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Variation <small>ปรับจำนวนคน / manday / จำนวน RD แล้วเทียบราคาได้สูงสุด 10 แบบ</small></h2>
+    <div class="vtabs" id="vtabs"></div>
+    <div class="bar">
+      <div style="flex:1 1 240px"><label>ชื่อ variation นี้</label>
+        <input id="vName" oninput="renameVar(this.value)" placeholder="เช่น Option A – Full scope"></div>
+      <span class="muted">ตัวคูณกำไรตั้งแยกได้ในตารางราคา — ทีมงาน / RD / ค่าใช้จ่ายอื่น</span>
+      <div class="spacer"></div>
+      <button class="mini" onclick="dupVar()">ทำสำเนา variation</button>
+      <button class="mini" onclick="delVar()">ลบ variation นี้</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ตารางงาน × คน <small>แต่ละงานใช้ใคร กี่วัน — ยอดรวมแต่ละคนจะไหลไปเป็น Manday ในตารางราคา</small></h2>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px">
+      <input id="useAlloc" type="checkbox" style="width:auto" onchange="setUseAlloc(this.checked)">
+      <label for="useAlloc" style="margin:0; cursor:pointer">คำนวณ Manday จากตารางนี้ (ปิด = พิมพ์ manday เองในตารางราคา)</label>
+    </div>
+    <div id="allocWrap">
+      <div class="bar" style="margin-bottom:10px">
+        <button class="addbtn" style="margin-left:0" onclick="addAllocRow()">+ เพิ่มงาน (แถว)</button>
+        <button class="addbtn" style="margin-left:0" onclick="addLine('team')">+ เพิ่มคน (คอลัมน์)</button>
+        <button class="addbtn" style="margin-left:0" onclick="resetAllocTasks()">คืนรายการงานตั้งต้น</button>
+      </div>
+      <div class="scroll">
+        <table class="sheet" id="allocTable" style="min-width:520px">
+          <thead id="allocHead"></thead><tbody id="allocBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ตารางคิดราคา — <span id="sumVarName"></span></h2>
+    <div class="scroll">
+      <table class="sheet">
+        <thead><tr>
+          <th class="l">รายการ</th><th>เงินเดือน</th><th>Salary + OH</th>
+          <th>Price<br><span style="font-weight:400">ต่อวัน / ต่อหน่วย</span></th>
+          <th>จำนวนคน</th><th id="thQty">Quantity<br><span style="font-weight:400">Manday</span></th>
+          <th>at cost</th><th id="thPrice">at profit ×3</th><th></th>
+        </tr></thead>
+        <tbody id="sheetBody"></tbody>
+      </table>
+    </div>
+    <div class="bar" style="margin-top:12px">
+      <div class="spacer"></div>
+      <div style="display:flex; align-items:center; gap:7px">
+        <input id="qVat" type="checkbox" onchange="calc()" style="width:auto">
+        <label for="qVat" style="margin:0; cursor:pointer">บวก VAT 7%</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="bar" style="align-items:flex-end">
+      <div>
+        <div class="muted">ต้นทุนรวม (at cost)</div>
+        <div class="big" id="sCost" style="color:var(--muted)">0</div>
+      </div>
+      <div style="font-size:22px; color:var(--muted)">→</div>
+      <div>
+        <div class="muted" id="lblPrice">ราคาเสนอ (at profit ×3)</div>
+        <div class="big" id="sPrice">0</div>
+      </div>
+      <div id="vatBox" class="hide">
+        <div class="muted">+ VAT 7% → ยอดรวม</div>
+        <div class="big" id="sTotal">0</div>
+      </div>
+      <div class="spacer"></div>
+      <div style="text-align:right">
+        <div class="muted" id="sGp">กำไร 0 ฿</div>
+        <div class="bar" style="margin-top:8px; justify-content:flex-end">
+          <button class="btn" onclick="saveQuote()">บันทึก Quote</button>
+          <button class="btn ghost" onclick="newQuote()">เริ่ม Quote ใหม่ (ล้างตาราง)</button>
+        </div>
+        <div id="editNote" class="muted hide" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>หน้ารวม variation <small>มีกี่แบบ ราคาเท่าไหร่ ต่างกันตรงไหน</small></h2>
+
+    <div class="scroll">
+      <table class="list">
+        <thead><tr>
+          <th>Variation</th><th class="num">Manday</th>
+          <th class="num">RD (คน)</th><th class="num">ต้นทุน</th><th class="num">คูณ (ทีม/RD/อื่น)</th>
+          <th class="num">ราคาเสนอ</th><th class="num">ยอดรวม</th>
+        </tr></thead>
+        <tbody id="cmpBody"></tbody>
+      </table>
+    </div>
+
+    <h2 style="margin:22px 0 10px">ต่างกันตรงไหน <small>ช่องสีส้ม = บรรทัดที่แต่ละ variation ไม่เท่ากัน</small></h2>
+    <div id="diffNotes" style="margin-bottom:12px"></div>
+    <div class="scroll">
+      <table class="sheet" id="mx" style="min-width:600px">
+        <thead id="mxHead"></thead><tbody id="mxBody"></tbody>
+      </table>
+    </div>
+    <div class="bar" style="margin-top:12px">
+      <button class="mini" onclick="exportCmpCsv()">ดาวน์โหลดตารางเทียบ (CSV)</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ HISTORY ══════════ -->
+<section id="pane-hist" class="hide">
+  <div class="card">
+    <h2>ประวัติ Quote ที่ทำไปแล้ว</h2>
+    <div id="storeWarn" class="warn hide"></div>
+    <div class="bar" style="margin-bottom:14px">
+      <input id="histSearch" placeholder="ค้นหาชื่อบริษัท หรือโปรเจกต์…" oninput="renderHist()" style="max-width:320px">
+      <div class="spacer"></div>
+      <button class="mini" onclick="exportCsv()">ดาวน์โหลด CSV</button>
+      <button class="mini" onclick="backupJson()">สำรองข้อมูล (.json)</button>
+      <button class="mini" onclick="document.getElementById('restoreFile').click()">กู้คืนข้อมูล</button>
+      <input type="file" id="restoreFile" accept=".json" class="hide" onchange="restoreJson(event)">
+    </div>
+    <table class="list">
+      <thead><tr><th style="width:104px">วันที่</th><th>บริษัท</th><th>โปรเจกต์</th>
+        <th class="num" style="width:150px">ยอดที่เสนอ</th><th style="width:200px"></th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════ SETTINGS ══════════ -->
+<section id="pane-set" class="hide">
+  <div class="card">
+    <h2>ทีมงาน <small>ใส่เงินเดือน + OH ระบบจะหารเป็นราคาต่อวันให้</small></h2>
+    <div class="bar" style="margin-bottom:14px">
+      <div style="width:170px"><label>OH เริ่มต้น (%)</label>
+        <input id="setOh" type="number" min="0" step="5" oninput="setCfg('oh',this.value)"></div>
+      <div style="width:170px"><label>วันทำงาน / เดือน</label>
+        <input id="setDpm" type="number" min="1" step="1" oninput="setCfg('dpm',this.value)"></div>
+      <div style="width:210px"><label>หน่วยเวลาในตาราง</label>
+        <select id="setUnit" onchange="setCfg('unit',this.value)">
+          <option value="day">Manday (วัน)</option>
+          <option value="hour">ชั่วโมง</option>
+        </select></div>
+      <div style="width:170px"><label>ชั่วโมง / วัน</label>
+        <input id="setHpd" type="number" min="1" step="0.5" oninput="setCfg('hpd',this.value)"></div>
+    </div>
+    <div class="scroll">
+      <table class="sheet" style="min-width:700px">
+        <thead><tr><th class="l">ชื่อ</th><th>เงินเดือน</th><th>OH %</th>
+          <th>Salary + OH</th><th>= ราคา/วัน</th><th>ใส่จำนวนคนได้</th><th></th></tr></thead>
+        <tbody id="peopleBody"></tbody>
+      </table>
+    </div>
+    <button class="btn ghost" style="margin-top:12px" onclick="addPerson()">+ เพิ่มคน</button>
+  </div>
+
+  <div class="card">
+    <h2>รายการงานตั้งต้น <small>ใช้เป็นแถวเริ่มต้นของ "ตารางงาน × คน" ทุกครั้งที่สร้าง variation ใหม่</small></h2>
+    <div class="scroll"><table class="sheet" style="min-width:420px">
+      <thead><tr><th class="l">ชื่องาน</th><th></th></tr></thead>
+      <tbody id="taskPresetBody"></tbody>
+    </table></div>
+    <button class="btn ghost" style="margin-top:12px" onclick="addTaskPreset()">+ เพิ่มงาน</button>
+  </div>
+
+  <div class="card">
+    <h2>รายการค่าตอบแทน RD ที่ใช้บ่อย</h2>
+    <div class="scroll"><table class="sheet" style="min-width:520px">
+      <thead><tr><th class="l">ชื่อรายการ</th><th>ราคา/หัว</th><th></th></tr></thead>
+      <tbody id="respBody"></tbody>
+    </table></div>
+    <button class="btn ghost" style="margin-top:12px" onclick="addPreset('resp')">+ เพิ่มรายการ</button>
+  </div>
+
+  <div class="card">
+    <h2>ค่าใช้จ่ายอื่น / freelance ที่ใช้บ่อย</h2>
+    <div class="scroll"><table class="sheet" style="min-width:520px">
+      <thead><tr><th class="l">ชื่อรายการ</th><th>ราคา/หน่วย</th><th></th></tr></thead>
+      <tbody id="otherBody"></tbody>
+    </table></div>
+    <button class="btn ghost" style="margin-top:12px" onclick="addPreset('other')">+ เพิ่มรายการ</button>
+  </div>
+</section>
+
+</main>
+<datalist id="respList"></datalist>
+<datalist id="otherList"></datalist>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ═══════ storage: เบราว์เซอร์ + ไฟล์บนเครื่อง ═══════ */
+var KEY='crowd_quote_v4', canStore=false;
+try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); canStore=true; }catch(e){ canStore=false; }
+var HAS_FSA=(typeof window.showSaveFilePicker==='function');
+var fileHandle=null, lastSync='', handleSticky=true, needPerm=false;
+
+/* ---- จำ handle ของไฟล์ไว้ใน IndexedDB ---- */
+function idb(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open('cq_store',1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore('h'); };
+    r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+  });
+}
+function idbSet(k,v){ return idb().then(function(db){ return new Promise(function(res,rej){
+  var t=db.transaction('h','readwrite'); t.objectStore('h').put(v,k);
+  t.oncomplete=function(){res();}; t.onerror=function(){rej(t.error);}; }); }); }
+function idbGet(k){ return idb().then(function(db){ return new Promise(function(res,rej){
+  var t=db.transaction('h','readonly'), q=t.objectStore('h').get(k);
+  q.onsuccess=function(){ res(q.result||null); }; q.onerror=function(){ rej(q.error); }; }); }); }
+
+function readHandle(h){ return h.getFile().then(function(f){ return f.text(); }).then(function(t){ return JSON.parse(t); }); }
+function writeHandle(h,obj){
+  return h.createWritable().then(function(w){
+    return w.write(JSON.stringify(obj,null,1)).then(function(){ return w.close(); });
+  });
+}
+function nowHM(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;};
+  return p(d.getHours())+':'+p(d.getMinutes()); }
+
+function renderFileBar(){
+  var el=document.getElementById('fileBar'); if(!el) return;
+  if(fileHandle&&!needPerm&&fileBroken){
+    el.className='filebar warn';
+    el.innerHTML='<span>⚠️ เขียนไฟล์ <b>'+esc(fileHandle.name)+'</b> ไม่สำเร็จ — ไฟล์อาจถูกย้าย ลบ หรือเปลี่ยนชื่อ '+
+      'ข้อมูลยังอยู่ในเบราว์เซอร์ ให้เลือกไฟล์ใหม่เพื่อเก็บต่อ</span>'+
+      '<div style="flex:1"></div><button onclick="pickFile()">เลือกไฟล์ใหม่</button>'+
+      '<button onclick="openFromFile()">ชี้ไปที่ไฟล์เดิม</button>';
+  }else if(fileHandle&&!needPerm){
+    el.className='filebar ok';
+    el.innerHTML='<span>💾 บันทึกลงไฟล์ <b>'+esc(fileHandle.name)+'</b> อัตโนมัติทุกครั้งที่มีการแก้ '+
+      (lastSync?'· อัปเดตล่าสุด <b>'+lastSync+'</b>':'· รอการแก้ไขครั้งแรก')+
+      (handleSticky?'':' <b>(เบราว์เซอร์นี้จำไฟล์ข้ามการปิดหน้าไม่ได้ — เปิดครั้งหน้าให้กด "ใช้ไฟล์เดิม")</b>')+
+      '</span><div style="flex:1"></div><button onclick="pickFile()">เปลี่ยนไฟล์</button>';
+  }else if(fileHandle&&needPerm){
+    el.className='filebar warn';
+    el.innerHTML='<span>🔗 เชื่อมไฟล์ <b>'+esc(fileHandle.name)+'</b> ไว้อยู่ — กดอนุญาตให้เข้าถึงไฟล์เพื่อโหลดข้อมูลล่าสุด</span>'+
+      '<div style="flex:1"></div><button onclick="grantPerm()">อนุญาตเข้าถึงไฟล์</button>'+
+      '<button onclick="pickFile()">เลือกไฟล์ใหม่</button>';
+  }else if(HAS_FSA){
+    el.className='filebar warn';
+    el.innerHTML='<span>⚠️ ตอนนี้ข้อมูลอยู่ในเบราว์เซอร์เครื่องนี้อย่างเดียว — ถ้าล้าง browser data จะหาย '+
+      'แนะนำให้เก็บเป็นไฟล์ไว้ในโฟลเดอร์ Google Drive / OneDrive ที่ sync อยู่</span>'+
+      '<div style="flex:1"></div><button onclick="pickFile()">เลือกที่เก็บไฟล์</button>'+
+      '<button onclick="openFromFile()">ใช้ไฟล์เดิมที่มีอยู่</button>';
+  }else{
+    el.className='filebar warn';
+    el.innerHTML='<span>⚠️ เบราว์เซอร์นี้เก็บลงไฟล์อัตโนมัติไม่ได้ — เปิดด้วย Chrome หรือ Edge จะเก็บอัตโนมัติได้ '+
+      'ระหว่างนี้ให้กด "สำรองข้อมูล (.json)" ในแท็บประวัติเป็นระยะ</span>';
+  }
+}
+
+function payloadOf(){
+  DB.updatedAt=new Date().toISOString();
+  return {v:2, updatedAt:DB.updatedAt, data:DB};
+}
+var writing=false, writeAgain=false, fileBroken=false;
+function persistAll(){
+  var pl=payloadOf();
+  if(canStore){ try{ localStorage.setItem(KEY,JSON.stringify(pl)); }catch(e){} }
+  if(!fileHandle||needPerm) { renderFileBar(); return Promise.resolve(); }
+  if(writing){ writeAgain=true; return Promise.resolve(); }
+  writing=true;
+  return writeHandle(fileHandle,pl).then(function(){
+    writing=false; fileBroken=false; lastSync=nowHM(); renderFileBar();
+    if(writeAgain){ writeAgain=false; return persistAll(); }
+  },function(){
+    writing=false; writeAgain=false; fileBroken=true; renderFileBar();
+  });
+}
+function localPayload(){ try{ return JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){ return null; } }
+
+function ensurePerm(h){
+  if(!h||!h.queryPermission) return Promise.resolve(true);
+  var o={mode:'readwrite'};
+  return h.queryPermission(o).then(function(p){
+    if(p==='granted') return true;
+    return h.requestPermission(o).then(function(p2){ return p2==='granted'; });
+  }).catch(function(){ return false; });
+}
+function grantPerm(){
+  ensurePerm(fileHandle).then(function(ok){
+    if(!ok){ toast('ยังไม่ได้รับสิทธิ์เข้าถึงไฟล์'); return; }
+    needPerm=false;
+    return readHandle(fileHandle).then(function(pl){
+      if(pl&&pl.data){ applyData(pl.data); startApp(true); toast('โหลดข้อมูลจากไฟล์แล้ว'); }
+      renderFileBar();
+    });
+  }).catch(function(){ toast('อ่านไฟล์ไม่ได้'); });
+}
+function pickFile(){
+  if(!HAS_FSA){ toast('เบราว์เซอร์นี้ไม่รองรับ'); return; }
+  window.showSaveFilePicker({suggestedName:'quote-data.json',
+    types:[{description:'ไฟล์ข้อมูล Quote',accept:{'application/json':['.json']}}]})
+  .then(function(h){
+    fileHandle=h; needPerm=false;
+    return idbSet('file',h).then(function(){ return idbGet('file'); })
+      .then(function(v){ handleSticky=!!v; }, function(){ handleSticky=false; });
+  }).then(function(){ return persistAll(); })
+  .then(function(){ renderFileBar(); toast('เชื่อมไฟล์แล้ว — ต่อไปจะเซฟลงไฟล์นี้อัตโนมัติ'); })
+  .catch(function(){});
+}
+function openFromFile(){
+  if(!HAS_FSA){ toast('เบราว์เซอร์นี้ไม่รองรับ — ใช้ปุ่มกู้คืนข้อมูลในแท็บประวัติแทน'); return; }
+  window.showOpenFilePicker({types:[{description:'ไฟล์ข้อมูล Quote',accept:{'application/json':['.json']}}]})
+  .then(function(hs){
+    var h=hs[0];
+    return ensurePerm(h).then(function(){ return readHandle(h); }).then(function(pl){
+      var d=(pl&&pl.data)?pl.data:pl;
+      if(!d||!d.quotes) throw new Error('bad');
+      fileHandle=h; needPerm=false;
+      return idbSet('file',h).catch(function(){ handleSticky=false; }).then(function(){
+        applyData(d); startApp(true); renderFileBar();
+        toast('โหลดข้อมูลจากไฟล์แล้ว ('+d.quotes.length+' quote)');
+      });
+    });
+  }).catch(function(){ toast('เปิดไฟล์ไม่ได้ หรือไฟล์ไม่ใช่ไฟล์ข้อมูลของระบบนี้'); });
+}
+
+var saveTimer, booted=false;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){ persistAll(); },300);
+}
+/* เรียกทุกครั้งที่มีการแก้ในฟอร์ม — เก็บร่างที่ทำค้างไว้ลงไฟล์ด้วย */
+function touch(){
+  if(!booted) return;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){
+    try{ DB.draft=JSON.parse(JSON.stringify(cur)); }catch(e){}
+    persistAll();
+  },700);
+}
+
+
+var DB={
+  cfg:{ oh:50, dpm:20, unit:'day', hpd:8, mult:3 },
+  people:[
+    {id:'p1',name:'Maew',    salary:160000, oh:50},
+    {id:'p2',name:'Mata',    salary:35000,  oh:50},
+    {id:'p3',name:'Tonnam',  salary:35000,  oh:50},
+    {id:'p4',name:'mm',      salary:30000,  oh:0},
+    {id:'p5',name:'Intern',  salary:15000,  oh:0, multi:true}
+  ],
+  taskPresets:['Prepare for kickoff','Landscape & research','Quanti','Quali','Analysis',
+               'Presentation deck','Presentation to client','Meeting with client'],
+  respPresets:[ {id:'r1',name:'quanti',price:100}, {id:'r2',name:'quali',price:500} ],
+  otherPresets:[ {id:'o1',name:'interview',price:250}, {id:'o2',name:'analysis/reporting',price:40000},
+                 {id:'o3',name:'transcription',price:20000}, {id:'o4',name:'ค่าเดินทาง / อื่นๆ',price:5000} ],
+  quotes:[], seq:0
+};
+
+function applyData(d){
+  if(!d) return;
+  try{
+    if(d.cfg) for(var k in d.cfg) DB.cfg[k]=d.cfg[k];
+    if(d.people&&d.people.length) DB.people=d.people;
+    if(d.taskPresets&&d.taskPresets.length) DB.taskPresets=d.taskPresets;
+    if(d.respPresets) DB.respPresets=d.respPresets;
+    if(d.otherPresets) DB.otherPresets=d.otherPresets;
+    DB.quotes=(d.quotes||[]).map(function(q){ (q.vars||[]).forEach(fixVar); return q; }); DB.seq=d.seq||DB.quotes.length;
+    DB.updatedAt=d.updatedAt||'';
+    DB.draft=d.draft||null;
+    if(DB.draft&&DB.draft.vars) DB.draft.vars.forEach(fixVar);
+  }catch(e){}
+}
+
+
+/* ═══════ helpers ═══════ */
+var MAXVAR=10, LETTERS='ABCDEFGHIJ';
+function today(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function uid(){ return 'x'+Math.random().toString(36).slice(2,9); }
+function money(n){ return Math.round(Number(n)||0).toLocaleString('th-TH'); }
+function num(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFractionDigits:2}); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function person(id){ return DB.people.filter(function(p){return p.id===id;})[0]; }
+function salaryOh(p){ return p ? p.salary*(1+(Number(p.oh)||0)/100) : 0; }
+function dayRate(p){ return p ? salaryOh(p)/(DB.cfg.dpm||20) : 0; }
+
+/* ═══════ current quote ═══════ */
+var cur=null, vi=0;
+function newTeamLine(p){
+  return { id:uid(), pid:p?p.id:'', cpd:p?Math.round(dayRate(p)):0, n:1, md:0 };
+}
+function newVar(name){
+  var t=(DB.people.length?DB.people:[null]).map(function(p){ return newTeamLine(p); });
+  return { name:name, mults:{team:DB.cfg.mult, resp:DB.cfg.mult, other:DB.cfg.mult}, useAlloc:true,
+    team:t,
+    alloc:DB.taskPresets.map(function(n){ return {id:uid(), task:n, d:{}}; }),
+    resp:[ {label:'', cph:0, heads:0} ],
+    other:[ {label:'', price:0, qty:0} ] };
+}
+/* เติมฟิลด์ที่ขาดให้ข้อมูลเก่า */
+function fixVar(v){
+  v.team=v.team||[]; v.resp=v.resp||[]; v.other=v.other||[];
+  if(!v.mults){ var m=Number(v.mult)||DB.cfg.mult||3; v.mults={team:m,resp:m,other:m}; }
+  ['team','resp','other'].forEach(function(k){ v.mults[k]=Math.max(0,Number(v.mults[k])||0); });
+  v.team.forEach(function(l){ if(!l.id) l.id=uid(); });
+  if(!v.alloc){ v.alloc=[]; v.useAlloc=false; }
+  if(v.useAlloc===undefined) v.useAlloc=v.alloc.length>0;
+  return v;
+}
+/* manday จริงของแต่ละบรรทัดทีม */
+function mdOf(v,l){
+  if(!v.useAlloc) return Number(l.md)||0;
+  return (v.alloc||[]).reduce(function(s,r){ return s+(Number(r.d[l.id])||0); },0);
+}
+function blank(){ return { id:null, code:null, date:today(), company:'', project:'', vat:false, vars:[newVar('Option A')] }; }
+function V(){ return cur.vars[vi]; }
+
+function showTab(t){
+  ['new','hist','set'].forEach(function(k){ document.getElementById('pane-'+k).classList.toggle('hide',k!==t); });
+  document.getElementById('tab-new').classList.toggle('on',t==='new');
+  document.getElementById('tab-hist').classList.toggle('on',t==='hist');
+  document.getElementById('tab-set').classList.toggle('on',t==='set');
+  if(t==='hist') renderHist();
+  if(t==='set') renderSettings();
+}
+
+/* ═══════ totals ═══════ */
+function teamCost(v,l){ return (Number(l.cpd)||0)*(Number(l.n)||0)*mdOf(v,l); }
+function respCost(l){ return (Number(l.cph)||0)*(Number(l.heads)||0); }
+function otherCost(l){ return (Number(l.price)||0)*(Number(l.qty)||0); }
+function varTotals(v){
+  var team=0, md=0, resp=0, heads=0, other=0;
+  (v.team||[]).forEach(function(l){ team+=teamCost(v,l); md+=(Number(l.n)||0)*mdOf(v,l); });
+  (v.resp||[]).forEach(function(l){ resp+=respCost(l); heads+=Number(l.heads)||0; });
+  (v.other||[]).forEach(function(l){ other+=otherCost(l); });
+  var cost=team+resp+other;
+  var m=v.mults||{team:3,resp:3,other:3};
+  var price=Math.round(team*(Number(m.team)||0)+resp*(Number(m.resp)||0)+other*(Number(m.other)||0));
+  var vat=(cur&&cur.vat)?Math.round(price*0.07):0;
+  var eff=cost?price/cost:0;
+  return {team:team,md:md,resp:resp,heads:heads,other:other,cost:cost,mults:m,eff:eff,
+          price:price,profit:price-cost,vat:vat,total:price+vat};
+}
+
+/* ═══════ variations ═══════ */
+function renderVTabs(){
+  document.getElementById('vtabs').innerHTML=
+    cur.vars.map(function(v,i){
+      return '<button class="vtab'+(i===vi?' on':'')+'" onclick="gotoVar('+i+')">'+
+        esc(v.name||('Option '+LETTERS[i]))+' <span class="dot">'+money(varTotals(v).total)+'</span></button>';
+    }).join('') +
+    (cur.vars.length<MAXVAR ? '<button class="vtab" onclick="addVar()" title="คัดลอกจาก Option แรกมาให้">+ เพิ่ม variation (คัดลอกตัวแรก)</button>'
+                            : '<span class="muted">ครบ 10 variation แล้ว</span>');
+}
+function gotoVar(i){ vi=i; syncVarUI(); }
+function syncVarUI(){
+  fixVar(V());
+  document.getElementById('vName').value=V().name||'';
+  renderAlloc(); renderSheet(); calc();
+}
+function addVar(){
+  if(cur.vars.length>=MAXVAR){ toast('เพิ่มได้สูงสุด 10 variation'); return; }
+  var base=JSON.parse(JSON.stringify(cur.vars[0]));
+  base.name='Option '+LETTERS[cur.vars.length];
+  cur.vars.push(fixVar(base)); vi=cur.vars.length-1; syncVarUI();
+  toast('คัดลอกจาก '+(cur.vars[0].name||'Option A')+' มาแล้ว — ปรับได้เลย');
+}
+function dupVar(){
+  if(cur.vars.length>=MAXVAR){ toast('เพิ่มได้สูงสุด 10 variation'); return; }
+  var c=JSON.parse(JSON.stringify(V())); c.name=(V().name||'Option')+' (copy)';
+  cur.vars.splice(vi+1,0,c); vi++; syncVarUI();
+  toast('ทำสำเนาแล้ว — ปรับจำนวนคน / manday / RD ได้เลย');
+}
+function delVar(){
+  if(cur.vars.length<=1){ toast('ต้องมีอย่างน้อย 1 variation'); return; }
+  cur.vars.splice(vi,1);
+  vi=Math.max(0,vi-1); syncVarUI();
+}
+function renameVar(v){ V().name=v; renderVTabs(); renderCmp();
+  document.getElementById('sumVarName').textContent=v||('Option '+LETTERS[vi]); }
+function setMult(kind,val){ V().mults[kind]=Math.max(0,Number(val)||0); softRefresh(); calc(); }
+
+/* ═══════ sheet ═══════ */
+function toDisp(md){ return DB.cfg.unit==='hour' ? md*(DB.cfg.hpd||8) : md; }
+function fromDisp(x){ return DB.cfg.unit==='hour' ? (Number(x)||0)/(DB.cfg.hpd||8) : (Number(x)||0); }
+
+function peopleOpts(sel){
+  return '<option value="">— เลือกคน —</option>'+DB.people.map(function(p){
+    return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
+}
+/* ═══════ ตารางงาน × คน ═══════ */
+function lineName(l,i){ var p=person(l.pid); return p?p.name:'คนที่ '+(i+1); }
+function setUseAlloc(on){ V().useAlloc=!!on; renderAlloc(); renderSheet(); calc(); }
+function resetAllocTasks(){
+  var v=V(), have={};
+  v.alloc.forEach(function(r){ have[r.task]=1; });
+  DB.taskPresets.forEach(function(n){ if(!have[n]) v.alloc.push({id:uid(),task:n,d:{}}); });
+  renderAlloc(); renderSheet(); calc(); toast('เติมรายการงานตั้งต้นที่ยังไม่มีแล้ว');
+}
+function addAllocRow(){ V().alloc.push({id:uid(),task:'',d:{}}); renderAlloc(); }
+function delAllocRow(i){ V().alloc.splice(i,1); renderAlloc(); renderSheet(); calc(); }
+function setAllocTask(i,val){ V().alloc[i].task=val; }
+function setAllocCell(i,lineId,val){
+  var n=Number(val)||0;
+  if(n) V().alloc[i].d[lineId]=n; else delete V().alloc[i].d[lineId];
+  allocSoft(); softRefresh(); calc();
+}
+function renderAlloc(){
+  var v=V();
+  document.getElementById('useAlloc').checked=!!v.useAlloc;
+  document.getElementById('allocWrap').classList.toggle('hide',!v.useAlloc);
+  if(!v.useAlloc) return;
+  document.getElementById('allocHead').innerHTML='<tr><th class="l">งาน</th>'+
+    v.team.map(function(l,i){
+      return '<th><div class="colhead"><select onchange="setTeam('+i+',\'pid\',this.value)">'+
+        peopleOpts(l.pid)+'</select><button class="x" title="ลบคนนี้ออกจาก quote" '+
+        'onclick="delLine(\'team\','+i+')">×</button></div></th>'; }).join('')+
+    '<th>รวมวัน</th><th>ต้นทุนงานนี้</th><th></th></tr>';
+  document.getElementById('allocBody').innerHTML=
+    v.alloc.map(function(r,i){
+      return '<tr><td class="w-name"><input value="'+esc(r.task)+'" placeholder="เช่น mkt insight and benchmark" '+
+        'oninput="setAllocTask('+i+',this.value)"></td>'+
+        v.team.map(function(l){
+          return '<td class="w-n"><input class="fill" type="number" min="0" step="0.5" value="'+
+            (r.d[l.id]||0)+'" oninput="setAllocCell('+i+',\''+l.id+'\',this.value)"></td>';
+        }).join('')+
+        '<td class="num calc" data-arow="'+i+'">'+num(allocRowDays(v,r))+'</td>'+
+        '<td class="num calc" data-acost="'+i+'">'+money(allocRowCost(v,r))+'</td>'+
+        '<td><button class="x" onclick="delAllocRow('+i+')">×</button></td></tr>';
+    }).join('')+
+    '<tr class="tot"><td>รวม (Manday)</td>'+
+      v.team.map(function(l){ return '<td class="num" data-acol="'+l.id+'">'+num(mdOf(v,l))+'</td>'; }).join('')+
+      '<td class="num" data-atot="1">'+num(v.team.reduce(function(s,l){return s+mdOf(v,l);},0))+'</td>'+
+      '<td class="num" data-acosttot="1">'+money(v.team.reduce(function(s,l){return s+teamCost(v,l);},0))+'</td><td></td></tr>';
+}
+function allocRowDays(v,r){ return v.team.reduce(function(s,l){ return s+(Number(r.d[l.id])||0); },0); }
+function allocRowCost(v,r){
+  return v.team.reduce(function(s,l){ return s+(Number(r.d[l.id])||0)*(Number(l.cpd)||0)*(Number(l.n)||0); },0);
+}
+function allocSoft(){
+  var v=V();
+  v.alloc.forEach(function(r,i){
+    var el=document.querySelector('[data-arow="'+i+'"]');
+    if(el) el.textContent=num(allocRowDays(v,r));
+    var ce=document.querySelector('[data-acost="'+i+'"]');
+    if(ce) ce.textContent=money(allocRowCost(v,r));
+  });
+  var ct=document.querySelector('[data-acosttot="1"]');
+  if(ct) ct.textContent=money(v.team.reduce(function(s,l){ return s+teamCost(v,l); },0));
+  v.team.forEach(function(l){
+    var el=document.querySelector('[data-acol="'+l.id+'"]');
+    if(el) el.textContent=num(mdOf(v,l));
+  });
+  var tot=document.querySelector('[data-atot="1"]');
+  if(tot) tot.textContent=num(v.team.reduce(function(s,l){ return s+mdOf(v,l); },0));
+}
+
+function renderSheet(){
+  var v=V(), M=v.mults, h='';
+  document.getElementById('thQty').innerHTML='Quantity<br><span style="font-weight:400">'+
+    (DB.cfg.unit==='hour'?'ชั่วโมง':'Manday')+'</span>';
+  document.getElementById('thPrice').textContent='at profit';
+
+  /* --- team --- */
+  h+='<tr class="sec"><td colspan="6">ทีมงาน (Name)'+
+     '<button class="addbtn" onclick="addLine(\'team\')">+ เพิ่มคนในทีม</button></td><td class="num">at cost</td>'+
+     '<td class="w-n" style="background:var(--head)">×<input class="fill" type="number" min="0" step="0.1" value="'+num(M.team)+'" oninput="setMult(\'team\',this.value)" style="width:62px; display:inline-block" title="คูณกำไรเฉพาะบล็อกนี้"></td><td></td></tr>';
+  v.team.forEach(function(l,i){
+    var p=person(l.pid), c=teamCost(v,l);
+    var mdCell = v.useAlloc
+      ? '<td class="num calc" data-md="'+l.id+'" title="มาจากตารางงาน × คน"><b>'+num(toDisp(mdOf(v,l)))+'</b></td>'
+      : '<td class="w-n"><input class="fill" type="number" min="0" step="0.5" value="'+toDisp(l.md)+'" oninput="setTeam('+i+',\'md\',this.value)"></td>';
+    h+='<tr>'+
+      '<td class="w-name"><select onchange="setTeam('+i+',\'pid\',this.value)">'+peopleOpts(l.pid)+'</select></td>'+
+      '<td class="num calc">'+(p?money(p.salary):'—')+'</td>'+
+      '<td class="num calc">'+(p?money(salaryOh(p)):'—')+'</td>'+
+      '<td class="w-money"><input class="fill" type="number" step="1" value="'+l.cpd+'" oninput="setTeam('+i+',\'cpd\',this.value)"></td>'+
+      (p&&p.multi
+        ? '<td class="w-n"><input class="fill" type="number" min="0" step="1" value="'+l.n+'" oninput="setTeam('+i+',\'n\',this.value)" title="ระบุจำนวนคนได้"></td>'
+        : '<td class="num calc" title="ตำแหน่งนี้นับเป็น 1 คน — ถ้าต้องระบุจำนวน ให้ติ๊ก \'ใส่จำนวนคนได้\' ในแท็บตั้งค่า">1</td>')+
+      mdCell+
+      '<td class="num calc">'+money(c)+'</td>'+
+      '<td class="num calc"><b>'+money(c*M.team)+'</b></td>'+
+      '<td><button class="x" onclick="delLine(\'team\','+i+')">×</button></td></tr>';
+  });
+
+  /* --- respondent --- */
+  h+='<tr class="sec"><td colspan="3">Respondent compensation (RD)'+
+     '<button class="addbtn" onclick="addLine(\'resp\')">+ เพิ่มบรรทัด</button></td><td>Cost per head</td>'+
+     '<td colspan="2">No. of Head</td><td class="num">at cost</td>'+
+     '<td class="w-n" style="background:var(--head)">×<input class="fill" type="number" min="0" step="0.1" value="'+num(M.resp)+'" oninput="setMult(\'resp\',this.value)" style="width:62px; display:inline-block" title="คูณกำไรเฉพาะบล็อกนี้"></td><td></td></tr>';
+  v.resp.forEach(function(l,i){
+    var c=respCost(l);
+    h+='<tr>'+
+      '<td colspan="3" class="w-name"><input list="respList" value="'+esc(l.label)+'" oninput="setResp('+i+',\'label\',this.value)" placeholder="เช่น quanti / quali"></td>'+
+      '<td class="w-money"><input class="fill" type="number" min="0" step="10" value="'+l.cph+'" oninput="setResp('+i+',\'cph\',this.value)"></td>'+
+      '<td colspan="2"><input class="fill" type="number" min="0" step="1" value="'+l.heads+'" oninput="setResp('+i+',\'heads\',this.value)"></td>'+
+      '<td class="num calc">'+money(c)+'</td>'+
+      '<td class="num calc"><b>'+money(c*M.resp)+'</b></td>'+
+      '<td><button class="x" onclick="delLine(\'resp\','+i+')">×</button></td></tr>';
+  });
+
+  /* --- other --- */
+  h+='<tr class="sec"><td colspan="3">ค่าใช้จ่ายอื่น / freelance'+
+     '<button class="addbtn" onclick="addLine(\'other\')">+ เพิ่มบรรทัด</button></td><td>ราคา/หน่วย</td>'+
+     '<td colspan="2">จำนวน</td><td class="num">at cost</td>'+
+     '<td class="w-n" style="background:var(--head)">×<input class="fill" type="number" min="0" step="0.1" value="'+num(M.other)+'" oninput="setMult(\'other\',this.value)" style="width:62px; display:inline-block" title="คูณกำไรเฉพาะบล็อกนี้"></td><td></td></tr>';
+  v.other.forEach(function(l,i){
+    var c=otherCost(l);
+    h+='<tr>'+
+      '<td colspan="3" class="w-name"><input list="otherList" value="'+esc(l.label)+'" oninput="setOther('+i+',\'label\',this.value)" placeholder="เช่น interview / analysis"></td>'+
+      '<td class="w-money"><input class="fill" type="number" min="0" step="100" value="'+l.price+'" oninput="setOther('+i+',\'price\',this.value)"></td>'+
+      '<td colspan="2"><input class="fill" type="number" min="0" step="1" value="'+l.qty+'" oninput="setOther('+i+',\'qty\',this.value)"></td>'+
+      '<td class="num calc">'+money(c)+'</td>'+
+      '<td class="num calc"><b>'+money(c*M.other)+'</b></td>'+
+      '<td><button class="x" onclick="delLine(\'other\','+i+')">×</button></td></tr>';
+  });
+
+  var t=varTotals(v);
+  h+='<tr class="tot"><td colspan="6">TOTAL</td><td class="num">'+money(t.cost)+'</td>'+
+     '<td class="num">'+money(t.price)+'</td><td></td></tr>';
+
+  document.getElementById('sheetBody').innerHTML=h;
+  document.getElementById('respList').innerHTML=DB.respPresets.map(function(r){return '<option value="'+esc(r.name)+'">';}).join('');
+  document.getElementById('otherList').innerHTML=DB.otherPresets.map(function(r){return '<option value="'+esc(r.name)+'">';}).join('');
+}
+
+function setTeam(i,k,val){
+  var l=V().team[i];
+  if(k==='pid'){ l.pid=val; var p=person(val);
+    if(p){ l.cpd=Math.round(dayRate(p)); if(!p.multi) l.n=1; }
+    renderSheet(); renderAlloc(); }
+  else if(k==='md'){ l.md=fromDisp(val); }
+  else { l[k]=Number(val)||0; }
+  if(k!=='pid') softRefresh();
+  calc();
+}
+function setResp(i,k,val){
+  var l=V().resp[i];
+  if(k==='label'){ l.label=val; var pr=DB.respPresets.filter(function(r){return r.name===val;})[0];
+    if(pr){ l.cph=pr.price; renderSheet(); } }
+  else l[k]=Number(val)||0;
+  if(k!=='label') softRefresh();
+  calc();
+}
+function setOther(i,k,val){
+  var l=V().other[i];
+  if(k==='label'){ l.label=val; var pr=DB.otherPresets.filter(function(r){return r.name===val;})[0];
+    if(pr){ l.price=pr.price; renderSheet(); } }
+  else l[k]=Number(val)||0;
+  if(k!=='label') softRefresh();
+  calc();
+}
+/* อัปเดตเฉพาะช่องผลลัพธ์ ไม่ rebuild input ที่กำลังพิมพ์อยู่ */
+function softRefresh(){
+  var v=V(), M=v.mults;
+  var rows=document.querySelectorAll('#sheetBody tr'), idx=0;
+  function fill(list,fn,mult){
+    idx++; /* section header */
+    list.forEach(function(l){
+      var tr=rows[idx++]; if(!tr) return;
+      var c=fn(l), tds=tr.querySelectorAll('td');
+      tds[tds.length-3].textContent=money(c);
+      tds[tds.length-2].innerHTML='<b>'+money(c*mult)+'</b>';
+    });
+  }
+  if(v.useAlloc) v.team.forEach(function(l){
+    var el=document.querySelector('[data-md="'+l.id+'"]');
+    if(el) el.innerHTML='<b>'+num(toDisp(mdOf(v,l)))+'</b>';
+  });
+  fill(v.team,function(l){ return teamCost(v,l); },M.team); fill(v.resp,respCost,M.resp); fill(v.other,otherCost,M.other);
+  var t=varTotals(v), last=rows[rows.length-1];
+  if(last){ var td=last.querySelectorAll('td'); td[1].textContent=money(t.cost); td[2].textContent=money(t.price); }
+}
+
+function addLine(kind){
+  var v=V();
+  if(kind==='team'){ v.team.push(newTeamLine(DB.people[0])); renderAlloc(); }
+  if(kind==='resp')  v.resp.push({label:'', cph:0, heads:0});
+  if(kind==='other') v.other.push({label:'', price:0, qty:0});
+  renderSheet(); calc();
+}
+function delLine(kind,i){
+  var v=V(), gone=v[kind][i];
+  v[kind].splice(i,1);
+  if(kind==='team'){ (v.alloc||[]).forEach(function(r){ delete r.d[gone.id]; }); renderAlloc(); }
+  renderSheet(); calc();
+}
+
+/* ═══════ calc / compare ═══════ */
+function calc(){
+  if(!cur) return;
+  cur.company=document.getElementById('qCompany').value;
+  cur.project=document.getElementById('qProject').value;
+  cur.date=document.getElementById('qDate').value;
+  cur.vat=document.getElementById('qVat').checked;
+  document.getElementById('sumVarName').textContent=V().name||('Option '+LETTERS[vi]);
+
+  var t=varTotals(V());
+  touch();
+  document.getElementById('sCost').textContent=money(t.cost);
+  document.getElementById('sPrice').textContent=money(t.price);
+  document.getElementById('lblPrice').textContent='ราคาเสนอ (at profit) · เฉลี่ย ×'+num(Math.round(t.eff*100)/100);
+  document.getElementById('sTotal').textContent=money(t.total);
+  document.getElementById('vatBox').classList.toggle('hide',!cur.vat);
+  var gp=t.price? Math.round(t.profit/t.price*100):0;
+  document.getElementById('sGp').textContent='กำไร '+money(t.profit)+' ฿ (GP '+gp+'%) · '+num(t.md)+' manday · RD '+num(t.heads)+' คน';
+  renderVTabs(); renderCmp();
+}
+function multTxt(m){
+  if(!m) return '';
+  if(Math.abs(m.team-m.resp)<0.001&&Math.abs(m.team-m.other)<0.001) return '×'+num(m.team);
+  return '<span title="ทีม / RD / อื่นๆ">×'+num(m.team)+' / ×'+num(m.resp)+' / ×'+num(m.other)+'</span>';
+}
+function vName(v,i){ return v.name||('Option '+LETTERS[i]); }
+
+/* รวมรายการทั้งหมดจากทุก variation → ใช้เป็นแถวของตารางเทียบ */
+function itemMatrix(){
+  var groups=[
+    {key:'team', title:'ทีมงาน', unit:'manday',
+     id:function(l){ var p=person(l.pid); return 'team:'+(p?p.name:l.pid||'?'); },
+     label:function(l){ var p=person(l.pid); return p?p.name:'(ยังไม่เลือกคน)'; },
+     qty:function(l,v){ return (Number(l.n)||0)*mdOf(v,l); },
+     detail:function(l,v){ return (Number(l.n)||0)+' คน × '+num(toDisp(mdOf(v,l)))+(DB.cfg.unit==='hour'?' ชม.':' วัน'); },
+     cost:function(l,v){ return teamCost(v,l); }},
+    {key:'resp', title:'ค่าตอบแทน RD', unit:'คน',
+     id:function(l){ return 'resp:'+(l.label||'?'); }, label:function(l){ return l.label||'(ไม่มีชื่อ)'; },
+     qty:function(l){ return Number(l.heads)||0; },
+     detail:function(l){ return num(Number(l.heads)||0)+' คน × '+money(l.cph)+' ฿'; },
+     cost:respCost},
+    {key:'other', title:'ค่าใช้จ่ายอื่น / freelance', unit:'หน่วย',
+     id:function(l){ return 'other:'+(l.label||'?'); }, label:function(l){ return l.label||'(ไม่มีชื่อ)'; },
+     qty:function(l){ return Number(l.qty)||0; },
+     detail:function(l){ return num(Number(l.qty)||0)+' × '+money(l.price)+' ฿'; },
+     cost:otherCost}
+  ];
+  groups.forEach(function(g){
+    g.rows=[]; var seen={};
+    cur.vars.forEach(function(v){
+      (v[g.key]||[]).forEach(function(l){
+        var id=g.id(l);
+        if(!seen[id]){ seen[id]={id:id,label:g.label(l),cells:{}}; g.rows.push(seen[id]); }
+      });
+    });
+    cur.vars.forEach(function(v,vix){
+      (v[g.key]||[]).forEach(function(l){
+        var r=seen[g.id(l)];
+        var c=r.cells[vix]||(r.cells[vix]={qty:0,cost:0,detail:''});
+        c.qty+=g.qty(l,v); c.cost+=g.cost(l,v); c.detail=g.detail(l,v);
+      });
+    });
+  });
+  return groups;
+}
+
+function renderCmp(){
+  /* ── ตารางสรุป ── */
+  document.getElementById('cmpBody').innerHTML=cur.vars.map(function(v,i){
+    var t=varTotals(v);
+    return '<tr class="'+(i===vi?'hi':'')+'">'+
+      '<td><a href="#" onclick="gotoVar('+i+');return false" style="color:var(--brand);font-weight:600;text-decoration:none">'+
+        esc(vName(v,i))+'</a></td>'+
+      '<td class="num">'+num(t.md)+'</td><td class="num">'+num(t.heads)+'</td>'+
+      '<td class="num">'+money(t.cost)+'</td><td class="num">'+multTxt(t.mults)+'</td>'+
+      '<td class="num">'+money(t.price)+'</td><td class="num"><b>'+money(t.total)+'</b></td></tr>';
+  }).join('');
+
+  /* ── ตารางเทียบรายบรรทัด ── */
+  var groups=itemMatrix();
+  document.getElementById('mxHead').innerHTML='<tr><th class="l">รายการ</th>'+
+    cur.vars.map(function(v,i){ return '<th>'+esc(vName(v,i))+'</th>'; }).join('')+'</tr>';
+
+  var body='', varyRows=[];
+  groups.forEach(function(g){
+    if(!g.rows.length) return;
+    body+='<tr class="sec"><td colspan="'+(cur.vars.length+1)+'">'+g.title+'</td></tr>';
+    g.rows.forEach(function(r){
+      var qs=cur.vars.map(function(v,i){ return r.cells[i]?r.cells[i].qty:null; });
+      var vary=qs.some(function(q){ return q!==qs[0]; });
+      if(vary) varyRows.push({g:g,r:r,qs:qs});
+      body+='<tr><td class="l">'+esc(r.label)+'</td>'+
+        cur.vars.map(function(v,i){
+          var c=r.cells[i];
+          if(!c) return '<td class="num'+(vary?' d':'')+'"><span class="muted">—</span></td>';
+          return '<td class="num'+(vary?' d':'')+'">'+esc(c.detail)+
+            '<br><span class="muted">'+money(c.cost)+' ฿</span></td>';
+        }).join('')+'</tr>';
+    });
+  });
+  body+='<tr class="tot"><td>ต้นทุนรวม</td>'+cur.vars.map(function(v){
+    return '<td class="num">'+money(varTotals(v).cost)+'</td>'; }).join('')+'</tr>';
+  body+='<tr class="tot"><td>ราคาเสนอ</td>'+cur.vars.map(function(v){
+    return '<td class="num">'+money(varTotals(v).total)+'</td>'; }).join('')+'</tr>';
+  document.getElementById('mxBody').innerHTML=body;
+
+  /* ── สรุปสั้นๆ ว่าจุดไหนไม่เหมือนกัน ── */
+  var notes='';
+  if(cur.vars.length<2){
+    notes='<div class="note muted">ยังมี variation เดียว — กด "+ เพิ่ม variation" ระบบจะคัดลอกตัวแรกมาให้ แล้วปรับต่อได้เลย</div>';
+  }else if(!varyRows.length){
+    notes='<div class="note muted">ทุก variation เหมือนกันหมด ยังไม่มีจุดที่ต่างกัน</div>';
+  }else{
+    notes=varyRows.map(function(x){
+      return '<div class="note"><b>'+esc(x.r.label)+'</b> — '+
+        cur.vars.map(function(v,i){
+          return esc(vName(v,i))+' '+num(x.qs[i]||0)+' '+x.g.unit;
+        }).join(' · ')+'</div>';
+    }).join('');
+  }
+  document.getElementById('diffNotes').innerHTML=notes;
+}
+
+function exportCmpCsv(){
+  var groups=itemMatrix();
+  var L=[['โปรเจกต์',cur.project||'','บริษัท',cur.company||''].join(',')];
+  L.push(['รายการ'].concat(cur.vars.map(function(v,i){ return '"'+vName(v,i).replace(/"/g,'""')+'"'; })).join(','));
+  groups.forEach(function(g){
+    if(!g.rows.length) return;
+    L.push('"'+g.title+'"');
+    g.rows.forEach(function(r){
+      L.push(['"'+r.label.replace(/"/g,'""')+'"'].concat(cur.vars.map(function(v,i){
+        var c=r.cells[i]; return c?c.qty:0; })).join(','));
+    });
+  });
+  L.push(['ต้นทุนรวม'].concat(cur.vars.map(function(v){ return varTotals(v).cost; })).join(','));
+  L.push(['ราคาเสนอ'].concat(cur.vars.map(function(v){ return varTotals(v).total; })).join(','));
+  download('variation-compare.csv',L.join('\n'),'text/csv;charset=utf-8');
+}
+
+/* ═══════ save / history ═══════ */
+function saveQuote(){
+  calc();
+  if(!cur.company.trim()&&!cur.project.trim()){ toast('ใส่ชื่อบริษัทหรือชื่อโปรเจกต์ก่อนบันทึก'); return; }
+  if(cur.vars.every(function(v){ return varTotals(v).total<=0; })){ toast('ยังไม่มีราคา — ใส่ทีมหรือค่าใช้จ่ายก่อน'); return; }
+  var rec=JSON.parse(JSON.stringify(cur));
+  if(cur.id){
+    for(var i=0;i<DB.quotes.length;i++) if(DB.quotes[i].id===cur.id) DB.quotes[i]=rec;
+    toast('แก้ไข '+rec.code+' แล้ว');
+  }else{
+    DB.seq++; rec.id=uid(); rec.code='Q'+String(DB.seq).padStart(4,'0');
+    DB.quotes.unshift(rec); cur.id=rec.id; cur.code=rec.code; toast('บันทึก '+rec.code+' แล้ว');
+  }
+  save(); document.getElementById('histCount').textContent=DB.quotes.length; markEditing();
+}
+function newQuote(){
+  var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
+  if(dirty && !confirm('ล้างตารางทั้งหมดเพื่อเริ่ม quote ใหม่?\n(งานที่บันทึกไว้แล้วในแท็บประวัติจะไม่หาย)')) return;
+  cur=blank(); vi=0;
+  document.getElementById('qCompany').value='';
+  document.getElementById('qProject').value='';
+  document.getElementById('qDate').value=cur.date;
+  document.getElementById('qVat').checked=false;
+  DB.draft=null;
+  syncVarUI(); markEditing(); save();
+  toast('ล้างตารางแล้ว — เริ่ม quote ใหม่ได้เลย');
+}
+function markEditing(){
+  var el=document.getElementById('editNote');
+  if(cur.id){ el.classList.remove('hide'); el.textContent='กำลังแก้ '+cur.code+' — กดบันทึกจะทับรายการเดิม'; }
+  else el.classList.add('hide');
+}
+function renderHist(){
+  var warn=document.getElementById('storeWarn');
+  if(!canStore){ warn.classList.remove('hide');
+    warn.textContent='เบราว์เซอร์นี้บันทึกถาวรไม่ได้ (เช่นเปิดในโหมดพรีวิว) — ข้อมูลจะหายเมื่อปิดหน้า แนะนำให้กด "สำรองข้อมูล (.json)" ไว้ หรือเปิดไฟล์นี้ตรงๆ ในเบราว์เซอร์'; }
+  else warn.classList.add('hide');
+  var q=(document.getElementById('histSearch').value||'').toLowerCase();
+  var list=DB.quotes.filter(function(r){ return !q||((r.company||'')+' '+(r.project||'')).toLowerCase().indexOf(q)>=0; });
+  var keep=cur;
+  document.getElementById('histBody').innerHTML=list.length?list.map(function(r){
+    cur=r;
+    var tots=r.vars.map(function(v){ return varTotals(v).total; });
+    var lo=Math.min.apply(null,tots), hi=Math.max.apply(null,tots);
+    cur=keep;
+    return '<tr><td>'+r.date+'<br><span class="muted">'+r.code+'</span></td>'+
+      '<td>'+esc(r.company||'—')+'</td>'+
+      '<td>'+esc(r.project||'—')+'<br><span class="muted">'+r.vars.length+' variation: '+
+        r.vars.map(function(v,i){ return esc(vName(v,i)); }).join(' · ')+'</span></td>'+
+      '<td class="num"><b>'+(lo===hi?money(lo):money(lo)+' – '+money(hi))+'</b>'+
+        '<br><span class="muted">'+r.vars.length+' ตัวเลือก</span></td>'+
+      '<td class="act"><button class="mini" onclick="openQuote(\''+r.id+'\')">เปิด/แก้</button> '+
+      '<button class="mini" onclick="dupQuote(\''+r.id+'\')">ทำสำเนา</button> '+
+      '<button class="x" onclick="delQuote(\''+r.id+'\')">×</button></td></tr>';
+  }).join(''):'<tr><td colspan="5" class="empty">ยังไม่มี quote ที่บันทึกไว้</td></tr>';
+  cur=keep;
+  document.getElementById('histCount').textContent=DB.quotes.length;
+}
+function openQuote(id){
+  var r=DB.quotes.filter(function(x){return x.id===id;})[0]; if(!r) return;
+  cur=JSON.parse(JSON.stringify(r)); cur.vars.forEach(fixVar); vi=0; fillForm(); showTab('new');
+}
+function dupQuote(id){
+  var r=DB.quotes.filter(function(x){return x.id===id;})[0]; if(!r) return;
+  cur=JSON.parse(JSON.stringify(r)); cur.vars.forEach(fixVar); cur.id=null; cur.code=null; cur.date=today();
+  cur.project=(r.project||'')+' (copy)'; vi=0; fillForm(); showTab('new');
+  toast('ทำสำเนาแล้ว — กดบันทึกเพื่อสร้างรายการใหม่');
+}
+function delQuote(id){
+  DB.quotes=DB.quotes.filter(function(x){return x.id!==id;});
+  if(cur&&cur.id===id){ cur.id=null; cur.code=null; markEditing(); }
+  save(); renderHist();
+}
+function fillForm(){
+  document.getElementById('qCompany').value=cur.company||'';
+  document.getElementById('qProject').value=cur.project||'';
+  document.getElementById('qDate').value=cur.date||today();
+  document.getElementById('qVat').checked=!!cur.vat;
+  syncVarUI(); markEditing();
+}
+
+/* ═══════ export ═══════ */
+function download(name,text,type){
+  var b=new Blob(['﻿'+text],{type:type||'text/plain;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
+}
+function exportCsv(){
+  if(!DB.quotes.length){ toast('ยังไม่มีข้อมูล'); return; }
+  var L=[['รหัส','วันที่','บริษัท','โปรเจกต์','Variation','Manday','RD (คน)','ต้นทุน','×ทีม','×RD','×อื่นๆ','ราคาเสนอ','VAT','ยอดรวม'].join(',')];
+  var keep=cur;
+  DB.quotes.forEach(function(r){ cur=r;
+    r.vars.forEach(function(v,i){ var t=varTotals(v);
+      L.push([r.code,r.date,'"'+(r.company||'').replace(/"/g,'""')+'"','"'+(r.project||'').replace(/"/g,'""')+'"',
+        '"'+(v.name||'').replace(/"/g,'""')+'"',t.md,t.heads,t.cost,t.mults.team,t.mults.resp,t.mults.other,t.price,t.vat,t.total].join(','));
+    });
+  });
+  cur=keep;
+  download('quotes.csv',L.join('\n'),'text/csv;charset=utf-8');
+}
+function backupJson(){ download('quote-backup.json',JSON.stringify(DB,null,2),'application/json'); }
+function restoreJson(ev){
+  var f=ev.target.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{ var d=JSON.parse(rd.result);
+      if(d.quotes){ DB=d; if(!DB.cfg) DB.cfg={oh:50,dpm:20,unit:'day',hpd:8,mult:3};
+        save(); renderHist(); renderSettings(); toast('กู้คืนข้อมูลแล้ว'); }
+      else toast('ไฟล์ไม่ถูกต้อง');
+    }catch(e){ toast('อ่านไฟล์ไม่ได้'); }
+  };
+  rd.readAsText(f); ev.target.value='';
+}
+
+/* ═══════ settings ═══════ */
+function setCfg(k,v){
+  DB.cfg[k]=(k==='unit')?v:(Number(v)||DB.cfg[k]);
+  save(); renderSettings(); renderSheet(); calc();
+}
+function renderSettings(){
+  document.getElementById('setOh').value=DB.cfg.oh;
+  document.getElementById('setDpm').value=DB.cfg.dpm;
+  document.getElementById('setUnit').value=DB.cfg.unit;
+  document.getElementById('setHpd').value=DB.cfg.hpd;
+  document.getElementById('peopleBody').innerHTML=DB.people.map(function(p,i){
+    return '<tr>'+
+      '<td class="w-name"><input value="'+esc(p.name)+'" oninput="setPerson('+i+',\'name\',this.value)"></td>'+
+      '<td class="w-money"><input class="fill" type="number" min="0" step="1000" value="'+p.salary+'" oninput="setPerson('+i+',\'salary\',this.value)"></td>'+
+      '<td class="w-n"><input class="fill" type="number" min="0" step="5" value="'+p.oh+'" oninput="setPerson('+i+',\'oh\',this.value)"></td>'+
+      '<td class="num calc">'+money(salaryOh(p))+'</td>'+
+      '<td class="num calc"><b>'+money(dayRate(p))+'</b></td>'+
+      '<td style="text-align:center"><input type="checkbox" style="width:auto" '+(p.multi?'checked':'')+
+        ' onchange="setPersonMulti('+i+',this.checked)" title="เช่น intern ที่ใช้หลายคน"></td>'+
+      '<td><button class="x" onclick="delPerson('+i+')">×</button></td></tr>';
+  }).join('');
+  document.getElementById('taskPresetBody').innerHTML=DB.taskPresets.map(function(n,i){
+    return '<tr><td class="w-name"><input value="'+esc(n)+'" oninput="setTaskPreset('+i+',this.value)"></td>'+
+      '<td><button class="x" onclick="delTaskPreset('+i+')">×</button></td></tr>';
+  }).join('');
+  ['resp','other'].forEach(function(kind){
+    var arr=kind==='resp'?DB.respPresets:DB.otherPresets;
+    document.getElementById(kind+'Body').innerHTML=arr.map(function(r,i){
+      return '<tr><td class="w-name"><input value="'+esc(r.name)+'" oninput="setPreset(\''+kind+'\','+i+',\'name\',this.value)"></td>'+
+        '<td class="w-money"><input class="fill" type="number" min="0" step="10" value="'+r.price+'" oninput="setPreset(\''+kind+'\','+i+',\'price\',this.value)"></td>'+
+        '<td><button class="x" onclick="delPreset(\''+kind+'\','+i+')">×</button></td></tr>';
+    }).join('');
+  });
+}
+function setPerson(i,k,v){
+  DB.people[i][k]=(k==='name')?v:(Number(v)||0); save();
+  var tr=document.querySelectorAll('#peopleBody tr')[i];
+  if(tr){ var td=tr.querySelectorAll('td');
+    td[3].textContent=money(salaryOh(DB.people[i]));
+    td[4].innerHTML='<b>'+money(dayRate(DB.people[i]))+'</b>'; }
+  renderSheet(); calc();
+}
+function setPersonMulti(i,on){
+  DB.people[i].multi=!!on;
+  if(!on) cur.vars.forEach(function(v){ v.team.forEach(function(l){ if(l.pid===DB.people[i].id) l.n=1; }); });
+  save(); renderSheet(); calc();
+}
+function addPerson(){ DB.people.push({id:uid(),name:'คนใหม่',salary:30000,oh:DB.cfg.oh}); save(); renderSettings(); renderSheet(); }
+function delPerson(i){ DB.people.splice(i,1); save(); renderSettings(); renderSheet(); calc(); }
+function setPreset(kind,i,k,v){
+  var arr=kind==='resp'?DB.respPresets:DB.otherPresets;
+  arr[i][k]=(k==='name')?v:(Number(v)||0); save();
+}
+function setTaskPreset(i,v){ DB.taskPresets[i]=v; save(); }
+function addTaskPreset(){ DB.taskPresets.push('งานใหม่'); save(); renderSettings(); }
+function delTaskPreset(i){ DB.taskPresets.splice(i,1); save(); renderSettings(); }
+function addPreset(kind){
+  (kind==='resp'?DB.respPresets:DB.otherPresets).push({id:uid(),name:'รายการใหม่',price:0});
+  save(); renderSettings();
+}
+function delPreset(kind,i){
+  (kind==='resp'?DB.respPresets:DB.otherPresets).splice(i,1); save(); renderSettings();
+}
+
+var tTimer;
+function toast(m){ var el=document.getElementById('toast'); el.textContent=m; el.classList.add('on');
+  clearTimeout(tTimer); tTimer=setTimeout(function(){ el.classList.remove('on'); },2600); }
+
+/* init */
+function startApp(final){
+  renderFileBar();
+  cur=(DB.draft&&DB.draft.vars&&DB.draft.vars.length)?DB.draft:blank();
+  vi=0;
+  document.getElementById('qCompany').value=cur.company||'';
+  document.getElementById('qProject').value=cur.project||'';
+  document.getElementById('qDate').value=cur.date||today();
+  document.getElementById('qVat').checked=!!cur.vat;
+  renderVTabs(); syncVarUI(); renderSettings(); markEditing();
+  document.getElementById('histCount').textContent=DB.quotes.length;
+  if(final) booted=true;
+  if(lastSync==='' && DB.updatedAt){
+    try{ var d=new Date(DB.updatedAt),p=function(n){return (n<10?'0':'')+n;};
+      lastSync=p(d.getHours())+':'+p(d.getMinutes()); renderFileBar(); }catch(e){}
+  }
+}
+['qCompany','qProject','qDate'].forEach(function(id){ document.getElementById(id).addEventListener('input',calc); });
+startApp(false);   /* วาดหน้าจอด้วยค่าตั้งต้นก่อน แล้วค่อยทับด้วยข้อมูลที่โหลดมา */
+
+/* Chrome ต้องมีคลิกก่อนถึงขออนุญาตไฟล์ได้ — ขอให้อัตโนมัติตอนแตะหน้าจอครั้งแรก */
+document.addEventListener('click',function once(){
+  if(!fileHandle||!needPerm) return;
+  document.removeEventListener('click',once,true);
+  grantPerm();
+},true);
+
+/* โหลดข้อมูล: ถ้าเคยผูกไฟล์ไว้และยังมีสิทธิ์ ให้ใช้ไฟล์เป็นหลัก ไม่งั้นใช้ของในเบราว์เซอร์ */
+(function boot(){
+  var lp=localPayload();
+  var done=function(){ startApp(true); };
+  idbGet('file').then(function(h){
+    if(!h){ if(lp&&lp.data) applyData(lp.data); return done(); }
+    fileHandle=h;
+    return h.queryPermission({mode:'readwrite'}).then(function(p){
+      if(p!=='granted'){ needPerm=true; if(lp&&lp.data) applyData(lp.data); return done(); }
+      return readHandle(h).then(function(pl){
+        if(pl&&pl.data) applyData(pl.data);
+        else if(lp&&lp.data) applyData(lp.data);
+        done();
+      },function(){ if(lp&&lp.data) applyData(lp.data); done(); });
+    });
+  }).catch(function(){ if(lp&&lp.data) applyData(lp.data); done(); });
+})();
+</script>
+</body>
+</html>
