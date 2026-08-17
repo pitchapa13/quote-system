@@ -255,7 +255,7 @@
   </div>
 
   <div class="card hide" id="qHistCard">
-    <h2>โปรเจกต์โควตาที่บันทึกไว้ <small>เปิดแก้ / ทำสำเนา / ลบ — โควตาคงเหลือของลูกค้าคำนวณจากรายการเหล่านี้</small></h2>
+    <h2>quotation โควตาที่บันทึกไว้ <small>เก็บไว้อ้างอิง (ไม่ตัดโควตา) — โควตาคงเหลือคิดจาก "ประวัติการใช้" ในแท็บ "ตั้งลูกค้า"</small></h2>
     <div class="scroll"><table class="list" style="min-width:640px">
       <thead><tr><th style="width:104px">วันที่</th><th>ลูกค้า / โปรเจกต์</th><th style="width:80px">ก้อน</th>
         <th class="num" style="width:120px">ราคาขาย</th><th class="num" style="width:120px">คิดเป็น (หัว)</th><th style="width:180px"></th></tr></thead>
@@ -380,7 +380,16 @@
       <tbody id="clientBody"></tbody>
     </table></div>
     <button class="btn ghost" style="margin-top:12px" onclick="addClient()">+ เพิ่มลูกค้า</button>
-    <div class="muted" style="margin-top:10px">คงเหลือ = โควตา − จำนวนหัวที่ใช้ไปในงานที่บันทึกไว้ (แท็บ "โควตารายปี")</div>
+    <div class="muted" style="margin-top:10px">คงเหลือ = โควตา − จำนวนหัวที่บันทึกไว้ใน "ประวัติการใช้" ด้านล่าง</div>
+  </div>
+
+  <div class="card">
+    <h2>ประวัติการใช้โควตา (กรอกเอง) <small>บันทึกแต่ละครั้งที่ใช้ — โควตาคงเหลือหักจากประวัตินี้เท่านั้น ไม่ตัดจาก quotation</small></h2>
+    <div style="max-width:360px; margin-bottom:14px">
+      <label>เลือกลูกค้า</label>
+      <select id="histClient" onchange="setHistClient(this.value)"></select>
+    </div>
+    <div id="usageWrap"></div>
   </div>
 </section>
 
@@ -1247,9 +1256,10 @@ function toast(m){ var el=document.getElementById('toast'); el.textContent=m; el
 function clientById(id){ return (DB.clients||[]).filter(function(c){return c.id===id;})[0]; }
 function poolPrice(c,pool){ return c ? (pool==='quali'?(Number(c.priceQuali)||0):(Number(c.priceQuanti)||0)) : 0; }
 function poolQuota(c,pool){ return c ? (pool==='quali'?(Number(c.quotaQuali)||0):(Number(c.quotaQuanti)||0)) : 0; }
-function quotaUsed(cid,pool,exclude){
-  return (DB.qquotes||[]).reduce(function(s,q){
-    return (q.clientId===cid && q.pool===pool && q.id!==exclude) ? s+(Number(q.headsCharged)||0) : s; },0);
+/* ใช้ไปเท่าไหร่ = ผลรวมจาก "ประวัติการใช้" ที่กรอกเอง (ไม่ตัดจาก quotation) */
+function quotaUsed(cid,pool){
+  var c=clientById(cid); if(!c) return 0;
+  return (c.usage||[]).reduce(function(s,u){ return u.pool===pool ? s+(Number(u.heads)||0) : s; },0);
 }
 function quotaCalc(){
   var v=V(), price=varTotals(v).price;
@@ -1309,10 +1319,12 @@ function renderQuota(){
     '<div class="note">ราคาขาย (×กำไร) ของ <b>'+esc(V().name||'')+'</b> = <b>'+money(qc.price)+' ฿</b> ÷ '+money(qc.per)+' ฿/หัว ('+qc.pool+') = '+num(Math.round(qc.heads*100)/100)+' หัว</div>'+
     '<table class="list" style="max-width:520px; margin-top:10px"><tbody>'+
       '<tr><td>โควตา '+qc.pool+' ทั้งหมด</td><td class="num">'+num(quota)+' หัว</td></tr>'+
-      '<tr><td>ใช้ไปแล้ว (โปรเจกต์อื่น)</td><td class="num">'+num(used)+' หัว</td></tr>'+
-      '<tr><td>คงเหลือก่อนหักงานนี้</td><td class="num">'+num(before)+' หัว</td></tr>'+
-      '<tr class="hi"><td><b>คงเหลือหลังหักงานนี้</b></td><td class="num"><b class="'+(after<0?'up':'down')+'">'+num(Math.round(after*100)/100)+' หัว</b></td></tr>'+
+      '<tr><td>ใช้ไปแล้ว (จากประวัติ)</td><td class="num">'+num(used)+' หัว</td></tr>'+
+      '<tr><td>คงเหลือตอนนี้</td><td class="num">'+num(before)+' หัว</td></tr>'+
+      '<tr class="hi"><td><b>ถ้าบันทึกงานนี้ จะเหลือ</b></td><td class="num"><b class="'+(after<0?'up':'down')+'">'+num(Math.round(after*100)/100)+' หัว</b></td></tr>'+
     '</tbody></table>'+
+    '<button class="mini" style="margin-top:10px" onclick="logQuotaToHistory()">+ บันทึกจำนวนหัวนี้ ('+num(Math.round(qc.heads*100)/100)+' หัว) ลงประวัติการใช้ของ '+esc(qc.client.name)+'</button>'+
+    '<div class="muted" style="margin-top:6px">* ปุ่มบันทึก quotation ด้านล่างเก็บใบเสนอราคาไว้เฉยๆ ไม่ตัดโควตา — โควตาตัดจากประวัติการใช้เท่านั้น</div>'+
     (after<0?'<div class="warn" style="margin-top:10px">⚠️ เกินโควตา '+qc.pool+' อยู่ '+num(Math.round(-after*100)/100)+' หัว</div>':'');
 }
 function renderQuotaSaved(){
@@ -1381,18 +1393,111 @@ function renderClients(){
       '<td class="num calc" data-crl="'+i+'"><b class="'+(remL<0?'up':'down')+'">'+num(remL)+'</b></td>'+
       '<td><button class="x" onclick="delClient('+i+')">×</button></td></tr>';
   }).join('')||'<tr><td colspan="8" class="empty">ยังไม่มีลูกค้ารายปี — กด "+ เพิ่มลูกค้า"</td></tr>';
+  var hs=document.getElementById('histClient');
+  if(hs){
+    if(histClientId && !clientById(histClientId)) histClientId='';
+    if(!histClientId && DB.clients.length) histClientId=DB.clients[0].id;
+    hs.innerHTML=(DB.clients||[]).map(function(c){ return '<option value="'+c.id+'"'+(c.id===histClientId?' selected':'')+'>'+esc(c.name)+'</option>'; }).join('')||'<option value="">— ยังไม่มีลูกค้า —</option>';
+    renderUsageHistory();
+  }
 }
 function setClient(i,k,val){
   var c=DB.clients[i]; if(!c) return;
   c[k]=(k==='name')?val:(Number(val)||0); save();
   var tr=document.querySelectorAll('#clientBody tr')[i];
-  if(tr){ var q=(Number(c.quotaQuanti)||0)-quotaUsed(c.id,'quanti',null), l=(Number(c.quotaQuali)||0)-quotaUsed(c.id,'quali',null);
+  if(tr){ var q=(Number(c.quotaQuanti)||0)-quotaUsed(c.id,'quanti'), l=(Number(c.quotaQuali)||0)-quotaUsed(c.id,'quali');
     var eq=tr.querySelector('[data-crq="'+i+'"]'), el=tr.querySelector('[data-crl="'+i+'"]');
     if(eq) eq.innerHTML='<b class="'+(q<0?'up':'down')+'">'+num(q)+'</b>';
     if(el) el.innerHTML='<b class="'+(l<0?'up':'down')+'">'+num(l)+'</b>'; }
+  if(c.id===histClientId) refreshUsageCalc();
 }
-function addClient(){ DB.clients=DB.clients||[]; DB.clients.push({id:uid(),name:'ลูกค้าใหม่',priceQuanti:0,priceQuali:0,quotaQuanti:0,quotaQuali:0}); save(); renderClients(); }
+function addClient(){ DB.clients=DB.clients||[]; DB.clients.push({id:uid(),name:'ลูกค้าใหม่',priceQuanti:0,priceQuali:0,quotaQuanti:0,quotaQuali:0,usage:[]}); save(); renderClients(); }
 function delClient(i){ DB.clients.splice(i,1); save(); renderClients(); }
+
+/* ── ประวัติการใช้โควตา per ลูกค้า (กรอกเอง) ── */
+var histClientId='';
+function setHistClient(id){ histClientId=id; renderUsageHistory(); }
+function renderUsageHistory(){
+  var wrap=document.getElementById('usageWrap'); if(!wrap) return;
+  var c=clientById(histClientId);
+  if(!c){ wrap.innerHTML='<div class="empty">เลือกลูกค้าเพื่อดู/บันทึกประวัติการใช้</div>'; return; }
+  c.usage=c.usage||[];
+  var runQ=0, runL=0;
+  var rows=c.usage.map(function(u,i){
+    var run=(u.pool==='quali')?(runL+=(Number(u.heads)||0)):(runQ+=(Number(u.heads)||0));
+    return '<tr>'+
+      '<td class="num">'+(i+1)+'</td>'+
+      '<td><input type="date" value="'+esc(u.date||'')+'" onchange="onUsage('+i+',\'date\',this.value)"></td>'+
+      '<td class="w-name"><input value="'+esc(u.note||'')+'" placeholder="เช่น โปรเจกต์ A" oninput="onUsage('+i+',\'note\',this.value)"></td>'+
+      '<td><select onchange="onUsage('+i+',\'pool\',this.value)">'+
+        '<option value="quanti"'+(u.pool!=='quali'?' selected':'')+'>quanti</option>'+
+        '<option value="quali"'+(u.pool==='quali'?' selected':'')+'>quali</option></select></td>'+
+      '<td class="w-n"><input class="fill" type="number" min="0" step="1" value="'+(u.heads||0)+'" oninput="onUsage('+i+',\'heads\',this.value)"></td>'+
+      '<td class="num calc" data-ucum="'+i+'">'+num(run)+'</td>'+
+      '<td><button class="x" onclick="delUsage('+i+')">×</button></td></tr>';
+  });
+  var usedQ=quotaUsed(c.id,'quanti'), usedL=quotaUsed(c.id,'quali');
+  var remQ=(Number(c.quotaQuanti)||0)-usedQ, remL=(Number(c.quotaQuali)||0)-usedL;
+  wrap.innerHTML=
+    '<div class="bar" style="gap:14px; flex-wrap:wrap; margin-bottom:12px">'+
+      '<div class="note" style="margin:0">quanti: โควตา '+num(c.quotaQuanti||0)+' · ใช้ <b data-usum="q">'+num(usedQ)+'</b> · เหลือ <b class="'+(remQ<0?'up':'down')+'" data-urem="q">'+num(remQ)+'</b> หัว</div>'+
+      '<div class="note" style="margin:0">quali: โควตา '+num(c.quotaQuali||0)+' · ใช้ <b data-usum="l">'+num(usedL)+'</b> · เหลือ <b class="'+(remL<0?'up':'down')+'" data-urem="l">'+num(remL)+'</b> หัว</div>'+
+    '</div>'+
+    '<div class="scroll"><table class="sheet" style="min-width:660px"><thead><tr>'+
+      '<th>ครั้งที่</th><th>วันที่</th><th class="l">รายละเอียด</th><th>ก้อน</th><th>จำนวนหัว</th><th>ใช้สะสม (ก้อนนี้)</th><th></th>'+
+    '</tr></thead><tbody>'+(rows.join('')||'<tr><td colspan="7" class="empty">ยังไม่มีประวัติ — กด "+ บันทึกการใช้"</td></tr>')+'</tbody></table></div>'+
+    '<button class="btn ghost" style="margin-top:12px" onclick="addUsage()">+ บันทึกการใช้</button>';
+}
+function refreshUsageCalc(){
+  var c=clientById(histClientId); if(!c) return;
+  var runQ=0, runL=0;
+  (c.usage||[]).forEach(function(u,i){
+    var run=(u.pool==='quali')?(runL+=(Number(u.heads)||0)):(runQ+=(Number(u.heads)||0));
+    var el=document.querySelector('[data-ucum="'+i+'"]'); if(el) el.textContent=num(run);
+  });
+  var usedQ=quotaUsed(c.id,'quanti'), usedL=quotaUsed(c.id,'quali');
+  var remQ=(Number(c.quotaQuanti)||0)-usedQ, remL=(Number(c.quotaQuali)||0)-usedL;
+  var sq=document.querySelector('[data-usum="q"]'), sl=document.querySelector('[data-usum="l"]');
+  if(sq) sq.textContent=num(usedQ); if(sl) sl.textContent=num(usedL);
+  var rq=document.querySelector('[data-urem="q"]'), rl=document.querySelector('[data-urem="l"]');
+  if(rq){ rq.textContent=num(remQ); rq.className=(remQ<0?'up':'down'); }
+  if(rl){ rl.textContent=num(remL); rl.className=(remL<0?'up':'down'); }
+}
+function onUsage(i,field,val){
+  var c=clientById(histClientId); if(!c||!c.usage||!c.usage[i]) return;
+  c.usage[i][field]=(field==='heads')?(Number(val)||0):val;
+  save();
+  if(field==='pool'){ renderUsageHistory(); }        /* select commit แล้ว rebuild ได้ */
+  else if(field==='heads'){ refreshUsageCalc(); }    /* อัปเดตเฉพาะช่องผลรวม ไม่ rebuild input ที่พิมพ์อยู่ */
+  if(field==='heads'||field==='pool') updateClientRemainCells(c);
+}
+function updateClientRemainCells(c){
+  var idx=DB.clients.indexOf(c); if(idx<0) return;
+  var tr=document.querySelectorAll('#clientBody tr')[idx]; if(!tr) return;
+  var q=(Number(c.quotaQuanti)||0)-quotaUsed(c.id,'quanti'), l=(Number(c.quotaQuali)||0)-quotaUsed(c.id,'quali');
+  var eq=tr.querySelector('[data-crq="'+idx+'"]'), el=tr.querySelector('[data-crl="'+idx+'"]');
+  if(eq) eq.innerHTML='<b class="'+(q<0?'up':'down')+'">'+num(q)+'</b>';
+  if(el) el.innerHTML='<b class="'+(l<0?'up':'down')+'">'+num(l)+'</b>';
+}
+function addUsage(){
+  var c=clientById(histClientId); if(!c){ toast('เลือกลูกค้าก่อน'); return; }
+  c.usage=c.usage||[]; c.usage.push({id:uid(),date:today(),note:'',pool:'quanti',heads:0});
+  save(); renderUsageHistory();
+}
+function delUsage(i){
+  var c=clientById(histClientId); if(!c||!c.usage) return;
+  c.usage.splice(i,1); save(); renderUsageHistory(); updateClientRemainCells(c);
+}
+/* ปุ่มบนแท็บโควตา: บันทึกจำนวนหัวที่คำนวณได้ ลงประวัติการใช้ของลูกค้า */
+function logQuotaToHistory(){
+  var qc=quotaCalc();
+  if(!qc.client){ toast('เลือกลูกค้าก่อน'); return; }
+  if(qc.heads<=0){ toast('ยังไม่มีจำนวนหัว — ใส่ราคาต่อหัว + ทำ quote ก่อน'); return; }
+  qc.client.usage=qc.client.usage||[];
+  qc.client.usage.push({id:uid(), date:today(), note:(cur.project||cur.company||'งานโควตา'), pool:qc.pool, heads:Math.round(qc.heads*100)/100});
+  save(); renderQuota();
+  toast('บันทึก '+num(Math.round(qc.heads*100)/100)+' หัว ('+qc.pool+') ลงประวัติ '+qc.client.name+' แล้ว');
+}
 
 /* init */
 function startApp(final){
