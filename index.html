@@ -244,6 +244,7 @@
         <div style="padding-top:8px; font-weight:700" id="qVarName">—</div>
       </div>
     </div>
+    <div id="qClientSetup" style="margin-top:12px"></div>
     <div id="quotaResult" style="margin-top:14px"></div>
     <div class="bar" style="margin-top:14px; justify-content:flex-end">
       <div id="qEditNote" class="muted hide" style="margin-right:auto"></div>
@@ -1247,7 +1248,7 @@ function quotaCalc(){
   return {price:price, per:per, heads:heads, client:c, pool:pool};
 }
 function setQuota(k,val){ if(!cur) return; cur[k]=val;
-  if(k==='clientId'){ var c=clientById(val); if(c){ cur.company=c.name; var ce=document.getElementById('qCompany'); if(ce) ce.value=c.name; } }
+  if(k==='clientId'){ var c=clientById(val); if(c){ cur.company=c.name; var ce=document.getElementById('qCompany'); if(ce) ce.value=c.name; } renderQuotaClientSelect(); }
   touch(); renderVTabs(); renderQuota(); }
 function renderQuotaClientSelect(){
   var sel=document.getElementById('qClient'); if(!sel) return;
@@ -1255,6 +1256,25 @@ function renderQuotaClientSelect(){
     (DB.clients||[]).map(function(c){ return '<option value="'+c.id+'"'+(c.id===(cur&&cur.clientId)?' selected':'')+'>'+esc(c.name)+'</option>'; }).join('');
   var pool=(cur&&cur.pool)||'quanti', radios=document.getElementsByName('qpool');
   for(var i=0;i<radios.length;i++) radios[i].checked=(radios[i].value===pool);
+  renderClientSetup();
+}
+/* ช่องตั้งราคาต่อหัว + โควตา ของลูกค้าที่เลือก — แก้บนหน้าโควตาได้เลย (สร้างเฉพาะตอนเปลี่ยนลูกค้า ไม่ rebuild ตอนพิมพ์) */
+function renderClientSetup(){
+  var box=document.getElementById('qClientSetup'); if(!box) return;
+  var c=clientById(cur&&cur.clientId), idx=c?DB.clients.indexOf(c):-1;
+  if(!c){ box.innerHTML=''; return; }
+  box.innerHTML='<div class="filebar ok" style="display:block">'+
+    '<b>ตั้งราคาต่อหัว + โควตาของ "'+esc(c.name)+'"</b> <span class="muted">— แก้ตรงนี้ได้เลย (sync กับแท็บตั้งค่า)</span>'+
+    '<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-top:8px">'+
+      '<div><label>ราคา/หัว quanti</label><input class="fill" type="number" min="0" step="10" value="'+(c.priceQuanti||0)+'" oninput="onClientFieldEdit('+idx+',\'priceQuanti\',this.value)"></div>'+
+      '<div><label>ราคา/หัว quali</label><input class="fill" type="number" min="0" step="10" value="'+(c.priceQuali||0)+'" oninput="onClientFieldEdit('+idx+',\'priceQuali\',this.value)"></div>'+
+      '<div><label>โควตา quanti (หัว)</label><input class="fill" type="number" min="0" step="1" value="'+(c.quotaQuanti||0)+'" oninput="onClientFieldEdit('+idx+',\'quotaQuanti\',this.value)"></div>'+
+      '<div><label>โควตา quali (หัว)</label><input class="fill" type="number" min="0" step="1" value="'+(c.quotaQuali||0)+'" oninput="onClientFieldEdit('+idx+',\'quotaQuali\',this.value)"></div>'+
+    '</div></div>';
+}
+function onClientFieldEdit(idx,field,val){
+  if(!DB.clients[idx]) return;
+  DB.clients[idx][field]=Number(val)||0; save(); renderQuota();  /* ไม่ rebuild #qClientSetup เพื่อไม่ให้ช่องที่พิมพ์อยู่หาย */
 }
 function renderQuota(){
   if(mode!=='quota'||!cur) return;
@@ -1265,14 +1285,19 @@ function renderQuota(){
   var box=document.getElementById('quotaResult'), qc=quotaCalc();
   if(!qc.client){ box.innerHTML='<div class="note muted">ยังไม่ได้เลือกลูกค้า — เลือกจากช่องด้านบน หรือเพิ่มลูกค้าใหม่ที่แท็บ "ตั้งค่าทีม / เรท"</div>'; return; }
   if(qc.per<=0){ box.innerHTML='<div class="warn">ลูกค้า "'+esc(qc.client.name)+'" ยังไม่ได้ตั้งราคาต่อหัว '+qc.pool+' — ไปตั้งที่แท็บ "ตั้งค่าทีม / เรท"</div>'; return; }
+  var vt=varTotals(V());
   var used=quotaUsed(qc.client.id,qc.pool,cur.id), quota=poolQuota(qc.client,qc.pool);
   var before=quota-used, after=before-qc.heads;
   box.innerHTML=
-    '<div class="note">ราคาขาย (×กำไร) ของ <b>'+esc(V().name||'')+'</b> = <b>'+money(qc.price)+' ฿</b> ÷ '+money(qc.per)+' ฿/หัว ('+qc.pool+') = คิดเป็น</div>'+
-    '<div style="display:flex; align-items:baseline; gap:10px; margin:6px 0 12px">'+
-      '<span class="big">'+num(Math.round(qc.heads*100)/100)+'</span>'+
-      '<span class="muted">หัว ('+qc.pool+') · ปัดขึ้น '+Math.ceil(qc.heads)+' หัว</span></div>'+
-    '<table class="list" style="max-width:520px"><tbody>'+
+    '<div class="bar" style="gap:28px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px">'+
+      '<div><div class="muted">ยอด quotation (เสนอลูกค้า)</div><div class="big">'+money(vt.price)+' ฿</div>'+
+        (cur.vat?'<div class="muted">+ VAT 7% → รวม <b>'+money(vt.total)+' ฿</b></div>':'<div class="muted">ยังไม่รวม VAT (ติ๊ก "บวก VAT 7%" ในตารางราคาถ้าต้องการ)</div>')+'</div>'+
+      '<div style="font-size:24px; color:var(--muted)">·</div>'+
+      '<div><div class="muted">คิดเป็นโควตา '+qc.pool+'</div><div class="big">'+num(Math.round(qc.heads*100)/100)+
+        ' <span class="muted" style="font-size:15px">หัว · ปัดขึ้น '+Math.ceil(qc.heads)+'</span></div></div>'+
+    '</div>'+
+    '<div class="note">ราคาขาย (×กำไร) ของ <b>'+esc(V().name||'')+'</b> = <b>'+money(qc.price)+' ฿</b> ÷ '+money(qc.per)+' ฿/หัว ('+qc.pool+') = '+num(Math.round(qc.heads*100)/100)+' หัว</div>'+
+    '<table class="list" style="max-width:520px; margin-top:10px"><tbody>'+
       '<tr><td>โควตา '+qc.pool+' ทั้งหมด</td><td class="num">'+num(quota)+' หัว</td></tr>'+
       '<tr><td>ใช้ไปแล้ว (โปรเจกต์อื่น)</td><td class="num">'+num(used)+' หัว</td></tr>'+
       '<tr><td>คงเหลือก่อนหักงานนี้</td><td class="num">'+num(before)+' หัว</td></tr>'+
