@@ -118,6 +118,7 @@
 
 <nav>
   <button id="tab-quota" class="on" onclick="showTab('quota')">โควตารายปี</button>
+  <button id="tab-clients" onclick="showTab('clients')">ตั้งลูกค้า</button>
   <button id="tab-new" onclick="showTab('new')">สร้าง Quote</button>
   <button id="tab-hist" onclick="showTab('hist')">ประวัติ Quote <span id="histCount" class="pill">0</span></button>
   <button id="tab-set" onclick="showTab('set')">ตั้งค่าทีม / เรท</button>
@@ -228,7 +229,7 @@
       <div>
         <label>ลูกค้ารายปี</label>
         <select id="qClient" onchange="setQuota('clientId',this.value)"></select>
-        <div class="muted" style="margin-top:4px">เพิ่ม/แก้ลูกค้า + โควตา ได้ที่แท็บ "ตั้งค่าทีม / เรท"</div>
+        <div class="muted" style="margin-top:4px">เพิ่ม/แก้ลูกค้า + โควตา ได้ที่แท็บ "ตั้งลูกค้า" หรือแก้ตรงนี้เลย</div>
       </div>
       <div>
         <label>ลงโควตาก้อนไหน</label>
@@ -276,6 +277,7 @@
       </table>
     </div>
 
+    <div id="diffSection">
     <h2 style="margin:22px 0 10px">ต่างกันตรงไหน <small>ช่องสีส้ม = บรรทัดที่แต่ละ variation ไม่เท่ากัน</small></h2>
     <div id="diffNotes" style="margin-bottom:12px"></div>
     <div class="scroll">
@@ -285,6 +287,7 @@
     </div>
     <div class="bar" style="margin-top:12px">
       <button class="mini" onclick="exportCmpCsv()">ดาวน์โหลดตารางเทียบ (CSV)</button>
+    </div>
     </div>
   </div>
 </section>
@@ -363,7 +366,10 @@
     </table></div>
     <button class="btn ghost" style="margin-top:12px" onclick="addPreset('other')">+ เพิ่มรายการ</button>
   </div>
+</section>
 
+<!-- ══════════ CLIENTS (ตั้งลูกค้ารายปี) ══════════ -->
+<section id="pane-clients" class="hide">
   <div class="card">
     <h2>ลูกค้ารายปี (โควตา) <small>ลูกค้าที่มีโควตาต่อปี — เก็บราคาต่อหัว (quanti/quali) และจำนวนหัวที่มี ระบบคิดคงเหลือให้จากงานในแท็บ "โควตารายปี"</small></h2>
     <div class="scroll"><table class="sheet" style="min-width:860px">
@@ -374,6 +380,7 @@
       <tbody id="clientBody"></tbody>
     </table></div>
     <button class="btn ghost" style="margin-top:12px" onclick="addClient()">+ เพิ่มลูกค้า</button>
+    <div class="muted" style="margin-top:10px">คงเหลือ = โควตา − จำนวนหัวที่ใช้ไปในงานที่บันทึกไว้ (แท็บ "โควตารายปี")</div>
   </div>
 </section>
 
@@ -616,16 +623,18 @@ function V(){ return cur.vars[vi]; }
 
 var mode='new';
 function showTab(t, keepCur){
-  var pane=(t==='hist')?'hist':(t==='set')?'set':'new';  /* 'new' และ 'quota' ใช้ pane เดียวกัน */
-  ['new','hist','set'].forEach(function(k){ document.getElementById('pane-'+k).classList.toggle('hide',k!==pane); });
+  var pane=(t==='hist')?'hist':(t==='set')?'set':(t==='clients')?'clients':'new';  /* 'new' และ 'quota' ใช้ pane เดียวกัน */
+  ['new','hist','set','clients'].forEach(function(k){ document.getElementById('pane-'+k).classList.toggle('hide',k!==pane); });
   document.getElementById('tab-new').classList.toggle('on',t==='new');
   document.getElementById('tab-quota').classList.toggle('on',t==='quota');
+  document.getElementById('tab-clients').classList.toggle('on',t==='clients');
   document.getElementById('tab-hist').classList.toggle('on',t==='hist');
   document.getElementById('tab-set').classList.toggle('on',t==='set');
   if(t==='new'||t==='quota'){
     if(keepCur){ mode=t; applyModeUI(); }
     else switchMode(t);
   }
+  if(t==='clients') renderClients();
   if(t==='hist') renderHist();
   if(t==='set') renderSettings();
 }
@@ -635,6 +644,7 @@ function applyModeUI(){
   document.getElementById('sumNormal').classList.toggle('hide',mode!=='new');
   document.getElementById('sumQuota').classList.toggle('hide',mode!=='quota');
   document.getElementById('qHistCard').classList.toggle('hide',mode!=='quota');
+  document.getElementById('diffSection').classList.toggle('hide',mode==='quota');
   if(mode==='quota'){ renderQuotaClientSelect(); renderQuotaSaved(); renderQuota(); }
 }
 function switchMode(t){
@@ -1264,7 +1274,7 @@ function renderClientSetup(){
   var c=clientById(cur&&cur.clientId), idx=c?DB.clients.indexOf(c):-1;
   if(!c){ box.innerHTML=''; return; }
   box.innerHTML='<div class="filebar ok" style="display:block">'+
-    '<b>ตั้งราคาต่อหัว + โควตาของ "'+esc(c.name)+'"</b> <span class="muted">— แก้ตรงนี้ได้เลย (sync กับแท็บตั้งค่า)</span>'+
+    '<b>ตั้งราคาต่อหัว + โควตาของ "'+esc(c.name)+'"</b> <span class="muted">— แก้ตรงนี้ได้เลย (sync กับแท็บ "ตั้งลูกค้า")</span>'+
     '<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-top:8px">'+
       '<div><label>ราคา/หัว quanti</label><input class="fill" type="number" min="0" step="10" value="'+(c.priceQuanti||0)+'" oninput="onClientFieldEdit('+idx+',\'priceQuanti\',this.value)"></div>'+
       '<div><label>ราคา/หัว quali</label><input class="fill" type="number" min="0" step="10" value="'+(c.priceQuali||0)+'" oninput="onClientFieldEdit('+idx+',\'priceQuali\',this.value)"></div>'+
@@ -1283,8 +1293,8 @@ function renderQuota(){
   if(cur.code){ en.classList.remove('hide'); en.textContent='กำลังแก้ '+cur.code+' — กดบันทึกจะทับรายการเดิม'; }
   else en.classList.add('hide');
   var box=document.getElementById('quotaResult'), qc=quotaCalc();
-  if(!qc.client){ box.innerHTML='<div class="note muted">ยังไม่ได้เลือกลูกค้า — เลือกจากช่องด้านบน หรือเพิ่มลูกค้าใหม่ที่แท็บ "ตั้งค่าทีม / เรท"</div>'; return; }
-  if(qc.per<=0){ box.innerHTML='<div class="warn">ลูกค้า "'+esc(qc.client.name)+'" ยังไม่ได้ตั้งราคาต่อหัว '+qc.pool+' — ไปตั้งที่แท็บ "ตั้งค่าทีม / เรท"</div>'; return; }
+  if(!qc.client){ box.innerHTML='<div class="note muted">ยังไม่ได้เลือกลูกค้า — เลือกจากช่องด้านบน หรือเพิ่มลูกค้าใหม่ที่แท็บ "ตั้งลูกค้า"</div>'; return; }
+  if(qc.per<=0){ box.innerHTML='<div class="warn">ลูกค้า "'+esc(qc.client.name)+'" ยังไม่ได้ตั้งราคาต่อหัว '+qc.pool+' — ตั้งได้ในกล่องด้านบน หรือแท็บ "ตั้งลูกค้า"</div>'; return; }
   var vt=varTotals(V());
   var used=quotaUsed(qc.client.id,qc.pool,cur.id), quota=poolQuota(qc.client,qc.pool);
   var before=quota-used, after=before-qc.heads;
