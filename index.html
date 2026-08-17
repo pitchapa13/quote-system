@@ -224,41 +224,32 @@
   </div>
 
   <div class="card hide" id="sumQuota">
-    <h2>โควตาลูกค้ารายปี <small>เลือกลูกค้า → ราคาขาย (×กำไร) ของ variation ที่ใช้ จะถูกหารด้วยราคาต่อหัว = จำนวนหัวที่หักจากโควตา</small></h2>
-    <div class="grid3" style="grid-template-columns:1.7fr 1fr 1fr">
+    <h2>โควตาลูกค้ารายปี — quotation <small>เลือกลูกค้า → ใส่ RD แต่ละกลุ่ม: quanti/quali + จำนวนหัว + ตัวคูณ x → ราคา/หัว = เรตฐานของลูกค้า × x (เรตฐานตั้งที่แท็บ "ตั้งลูกค้า")</small></h2>
+    <div class="grid3" style="grid-template-columns:1.6fr 1.4fr">
       <div>
         <label>ลูกค้ารายปี</label>
         <select id="qClient" onchange="setQuota('clientId',this.value)"></select>
-        <div class="muted" style="margin-top:4px">เพิ่ม/แก้ลูกค้า + โควตา ได้ที่แท็บ "ตั้งลูกค้า" หรือแก้ตรงนี้เลย</div>
+        <div class="muted" style="margin-top:4px">ตั้งราคาต่อหัวฐาน + โควตา ที่แท็บ "ตั้งลูกค้า"</div>
       </div>
       <div>
-        <label>ลงโควตาก้อนไหน</label>
-        <div style="display:flex; gap:16px; padding-top:7px">
-          <label style="display:flex; gap:5px; align-items:center; margin:0; font-weight:700; color:var(--ink); cursor:pointer">
-            <input type="radio" name="qpool" value="quanti" style="width:auto" onchange="setQuota('pool','quanti')"> quanti</label>
-          <label style="display:flex; gap:5px; align-items:center; margin:0; font-weight:700; color:var(--ink); cursor:pointer">
-            <input type="radio" name="qpool" value="quali" style="width:auto" onchange="setQuota('pool','quali')"> quali</label>
-        </div>
-      </div>
-      <div>
-        <label>ใช้ราคาจาก variation</label>
-        <div style="padding-top:8px; font-weight:700" id="qVarName">—</div>
+        <label>เรตฐานของลูกค้า (฿/หัว)</label>
+        <div id="qClientRates" style="padding-top:8px; font-weight:700">—</div>
       </div>
     </div>
-    <div id="qClientSetup" style="margin-top:12px"></div>
-    <div id="quotaResult" style="margin-top:14px"></div>
+    <div id="quotaRD" style="margin-top:14px"></div>
+    <div id="quotaTotals" style="margin-top:8px"></div>
     <div class="bar" style="margin-top:14px; justify-content:flex-end">
       <div id="qEditNote" class="muted hide" style="margin-right:auto"></div>
-      <button class="btn" onclick="saveQuotaQuote()">บันทึกลงโควตา</button>
-      <button class="btn ghost" onclick="newQuotaQuote()">เริ่มงานโควตาใหม่ (ล้างตาราง)</button>
+      <button class="btn" onclick="saveQuotaQuote()">บันทึก quotation</button>
+      <button class="btn ghost" onclick="newQuotaQuote()">เริ่มใหม่ (ล้างตาราง)</button>
     </div>
   </div>
 
   <div class="card hide" id="qHistCard">
     <h2>quotation โควตาที่บันทึกไว้ <small>เก็บไว้อ้างอิง (ไม่ตัดโควตา) — โควตาคงเหลือคิดจาก "ประวัติการใช้" ในแท็บ "ตั้งลูกค้า"</small></h2>
     <div class="scroll"><table class="list" style="min-width:640px">
-      <thead><tr><th style="width:104px">วันที่</th><th>ลูกค้า / โปรเจกต์</th><th style="width:80px">ก้อน</th>
-        <th class="num" style="width:120px">ราคาขาย</th><th class="num" style="width:120px">คิดเป็น (หัว)</th><th style="width:180px"></th></tr></thead>
+      <thead><tr><th style="width:104px">วันที่</th><th>ลูกค้า / โปรเจกต์</th>
+        <th class="num" style="width:130px">quotation</th><th class="num" style="width:120px">หัว (q/ql)</th><th style="width:180px"></th></tr></thead>
       <tbody id="qHistBody"></tbody>
     </table></div>
   </div>
@@ -627,7 +618,7 @@ function mdOf(v,l){
 }
 function blank(){ return { id:null, code:null, kind:'normal', date:today(), company:'', project:'', vat:false, vars:[newVar('Option A')] }; }
 function blankQ(){ return { id:null, code:null, kind:'quota', date:today(), company:'', project:'', vat:false,
-  clientId:'', pool:'quanti', vars:[newVar('งานโควตา')] }; }
+  clientId:'', rdq:[{id:uid(),pool:'quanti',heads:0,x:1}], vars:[newVar('งานโควตา')] }; }
 function V(){ return cur.vars[vi]; }
 
 var mode='new';
@@ -717,7 +708,7 @@ function delVar(){
 }
 function renameVar(v){ V().name=v; renderVTabs(); renderCmp();
   document.getElementById('sumVarName').textContent=v||('Option '+LETTERS[vi]);
-  if(mode==='quota') renderQuota(); }
+  if(mode==='quota') renderQuotaTotals(); }
 function setMult(kind,val){ V().mults[kind]=Math.max(0,Number(val)||0); softRefresh(); calc(); }
 
 /* ═══════ sheet ═══════ */
@@ -946,7 +937,7 @@ function calc(){
   var gp=t.price? Math.round(t.profit/t.price*100):0;
   document.getElementById('sGp').textContent='กำไร '+money(t.profit)+' ฿ (GP '+gp+'%) · '+num(t.md)+' manday · RD '+num(t.heads)+' คน';
   renderVTabs(); renderCmp();
-  if(mode==='quota') renderQuota();
+  if(mode==='quota') renderQuotaTotals();
 }
 function multTxt(m){
   if(!m) return '';
@@ -1274,9 +1265,8 @@ function renderQuotaClientSelect(){
   var sel=document.getElementById('qClient'); if(!sel) return;
   sel.innerHTML='<option value="">— เลือกลูกค้ารายปี —</option>'+
     (DB.clients||[]).map(function(c){ return '<option value="'+c.id+'"'+(c.id===(cur&&cur.clientId)?' selected':'')+'>'+esc(c.name)+'</option>'; }).join('');
-  var pool=(cur&&cur.pool)||'quanti', radios=document.getElementsByName('qpool');
-  for(var i=0;i<radios.length;i++) radios[i].checked=(radios[i].value===pool);
-  renderClientSetup();
+  var c=clientById(cur&&cur.clientId), rt=document.getElementById('qClientRates');
+  if(rt) rt.innerHTML=c?('quanti '+money(poolPrice(c,'quanti'))+' ฿ · quali '+money(poolPrice(c,'quali'))+' ฿'):'—';
 }
 /* ช่องตั้งราคาต่อหัว + โควตา ของลูกค้าที่เลือก — แก้บนหน้าโควตาได้เลย (สร้างเฉพาะตอนเปลี่ยนลูกค้า ไม่ rebuild ตอนพิมพ์) */
 function renderClientSetup(){
@@ -1298,34 +1288,78 @@ function onClientFieldEdit(idx,field,val){
 }
 function renderQuota(){
   if(mode!=='quota'||!cur) return;
-  document.getElementById('qVarName').textContent=V().name||('Option '+LETTERS[vi]);
+  if(!cur.rdq) cur.rdq=[{id:uid(),pool:'quanti',heads:0,x:1}];
   var en=document.getElementById('qEditNote');
-  if(cur.code){ en.classList.remove('hide'); en.textContent='กำลังแก้ '+cur.code+' — กดบันทึกจะทับรายการเดิม'; }
-  else en.classList.add('hide');
-  var box=document.getElementById('quotaResult'), qc=quotaCalc();
-  if(!qc.client){ box.innerHTML='<div class="note muted">ยังไม่ได้เลือกลูกค้า — เลือกจากช่องด้านบน หรือเพิ่มลูกค้าใหม่ที่แท็บ "ตั้งลูกค้า"</div>'; return; }
-  if(qc.per<=0){ box.innerHTML='<div class="warn">ลูกค้า "'+esc(qc.client.name)+'" ยังไม่ได้ตั้งราคาต่อหัว '+qc.pool+' — ตั้งได้ในกล่องด้านบน หรือแท็บ "ตั้งลูกค้า"</div>'; return; }
-  var vt=varTotals(V());
-  var used=quotaUsed(qc.client.id,qc.pool,cur.id), quota=poolQuota(qc.client,qc.pool);
-  var before=quota-used, after=before-qc.heads;
+  if(cur.code){ en.classList.remove('hide'); en.textContent='กำลังแก้ '+cur.code+' — กดบันทึกจะทับรายการเดิม'; } else en.classList.add('hide');
+  renderQuotaRD(); renderQuotaTotals();
+}
+function rdqRate(c,l){ return poolPrice(c,l.pool)*(Number(l.x)||0); }
+function rdqMoney(c,l){ return (Number(l.heads)||0)*rdqRate(c,l); }
+function renderQuotaRD(){
+  var wrap=document.getElementById('quotaRD'); if(!wrap) return;
+  var c=clientById(cur.clientId);
+  if(!c){ wrap.innerHTML='<div class="note muted">เลือกลูกค้าก่อน แล้วเพิ่มบรรทัด RD</div>'; return; }
+  var rows=(cur.rdq||[]).map(function(l,i){
+    return '<tr>'+
+      '<td><select onchange="setRdq('+i+',\'pool\',this.value)">'+
+        '<option value="quanti"'+(l.pool!=='quali'?' selected':'')+'>quanti</option>'+
+        '<option value="quali"'+(l.pool==='quali'?' selected':'')+'>quali</option></select></td>'+
+      '<td class="w-n"><input class="fill" type="number" min="0" step="1" value="'+(l.heads||0)+'" oninput="setRdq('+i+',\'heads\',this.value)"></td>'+
+      '<td class="w-n"><input class="fill" type="number" min="0" step="0.1" value="'+(l.x==null?1:l.x)+'" oninput="setRdq('+i+',\'x\',this.value)"></td>'+
+      '<td class="num calc">'+money(poolPrice(c,l.pool))+'</td>'+
+      '<td class="num calc" data-rdrate="'+i+'">'+money(rdqRate(c,l))+'</td>'+
+      '<td class="num calc" data-rdmoney="'+i+'"><b>'+money(rdqMoney(c,l))+'</b></td>'+
+      '<td><button class="x" onclick="delRdq('+i+')">×</button></td></tr>';
+  }).join('');
+  wrap.innerHTML='<div class="scroll"><table class="sheet" style="min-width:640px"><thead><tr>'+
+    '<th class="l">กลุ่ม</th><th>จำนวนหัว</th><th>x</th><th>เรตฐาน/หัว</th><th>เรตจริง (×x)</th><th>เงิน</th><th></th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<button class="addbtn" style="margin:10px 0 0 0" onclick="addRdq()">+ เพิ่มบรรทัด RD</button>';
+}
+function softQuotaRD(){
+  var c=clientById(cur.clientId); if(!c) return;
+  (cur.rdq||[]).forEach(function(l,i){
+    var r=document.querySelector('[data-rdrate="'+i+'"]'); if(r) r.textContent=money(rdqRate(c,l));
+    var m=document.querySelector('[data-rdmoney="'+i+'"]'); if(m) m.innerHTML='<b>'+money(rdqMoney(c,l))+'</b>';
+  });
+}
+function setRdq(i,field,val){
+  if(!cur.rdq||!cur.rdq[i]) return;
+  cur.rdq[i][field]=(field==='pool')?val:(Number(val)||0);
+  touch();
+  if(field==='pool'){ renderQuotaRD(); renderQuotaTotals(); }
+  else { softQuotaRD(); renderQuotaTotals(); }
+}
+function addRdq(){ cur.rdq=cur.rdq||[]; cur.rdq.push({id:uid(),pool:'quanti',heads:0,x:1}); touch(); renderQuotaRD(); renderQuotaTotals(); }
+function delRdq(i){ cur.rdq.splice(i,1); touch(); renderQuotaRD(); renderQuotaTotals(); }
+function quotationSum(){
+  var c=clientById(cur.clientId), sum=0, hq=0, hl=0;
+  (cur.rdq||[]).forEach(function(l){
+    sum+=rdqMoney(c,l);
+    if(l.pool==='quali') hl+=(Number(l.heads)||0); else hq+=(Number(l.heads)||0);
+  });
+  return {sum:sum, hq:hq, hl:hl, client:c};
+}
+function renderQuotaTotals(){
+  var box=document.getElementById('quotaTotals'); if(!box) return;
+  var q=quotationSum(), c=q.client;
+  if(!c){ box.innerHTML=''; return; }
+  var vat=cur.vat?Math.round(q.sum*0.07):0, total=q.sum+vat;
+  var cost=(cur.vars&&cur.vars[vi])?varTotals(V()).cost:0, profit=q.sum-cost;
+  var remQ=(Number(c.quotaQuanti)||0)-quotaUsed(c.id,'quanti'), remL=(Number(c.quotaQuali)||0)-quotaUsed(c.id,'quali');
   box.innerHTML=
-    '<div class="bar" style="gap:28px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px">'+
-      '<div><div class="muted">ยอด quotation (เสนอลูกค้า)</div><div class="big">'+money(vt.price)+' ฿</div>'+
-        (cur.vat?'<div class="muted">+ VAT 7% → รวม <b>'+money(vt.total)+' ฿</b></div>':'<div class="muted">ยังไม่รวม VAT (ติ๊ก "บวก VAT 7%" ในตารางราคาถ้าต้องการ)</div>')+'</div>'+
-      '<div style="font-size:24px; color:var(--muted)">·</div>'+
-      '<div><div class="muted">คิดเป็นโควตา '+qc.pool+'</div><div class="big">'+num(Math.round(qc.heads*100)/100)+
-        ' <span class="muted" style="font-size:15px">หัว · ปัดขึ้น '+Math.ceil(qc.heads)+'</span></div></div>'+
+    '<div class="bar" style="gap:26px; align-items:flex-end; flex-wrap:wrap; margin:8px 0 10px">'+
+      '<div><div class="muted">ยอด quotation (เสนอลูกค้า)</div><div class="big">'+money(q.sum)+' ฿</div>'+
+        (cur.vat?'<div class="muted">+ VAT 7% → รวม <b>'+money(total)+' ฿</b></div>':'<div class="muted">ยังไม่รวม VAT (ติ๊กในตารางราคา)</div>')+'</div>'+
+      '<div><div class="muted">คิดเป็นโควตา (หัวจริง)</div><div class="big" style="font-size:20px">quanti '+num(q.hq)+' · quali '+num(q.hl)+' <span class="muted" style="font-size:14px">หัว</span></div></div>'+
     '</div>'+
-    '<div class="note">ราคาขาย (×กำไร) ของ <b>'+esc(V().name||'')+'</b> = <b>'+money(qc.price)+' ฿</b> ÷ '+money(qc.per)+' ฿/หัว ('+qc.pool+') = '+num(Math.round(qc.heads*100)/100)+' หัว</div>'+
-    '<table class="list" style="max-width:520px; margin-top:10px"><tbody>'+
-      '<tr><td>โควตา '+qc.pool+' ทั้งหมด</td><td class="num">'+num(quota)+' หัว</td></tr>'+
-      '<tr><td>ใช้ไปแล้ว (จากประวัติ)</td><td class="num">'+num(used)+' หัว</td></tr>'+
-      '<tr><td>คงเหลือตอนนี้</td><td class="num">'+num(before)+' หัว</td></tr>'+
-      '<tr class="hi"><td><b>ถ้าบันทึกงานนี้ จะเหลือ</b></td><td class="num"><b class="'+(after<0?'up':'down')+'">'+num(Math.round(after*100)/100)+' หัว</b></td></tr>'+
+    '<div class="note muted">ต้นทุนภายใน (จาก quote เต็มด้านบน) '+money(cost)+' ฿ · กำไรถ้าเสนอราคานี้ <b class="'+(profit<0?'up':'down')+'">'+money(profit)+' ฿</b></div>'+
+    '<table class="list" style="max-width:600px; margin-top:10px"><tbody>'+
+      '<tr><td>โควตา quanti คงเหลือ (จากประวัติ)</td><td class="num">'+num(remQ)+' หัว</td><td class="num muted">ถ้าบันทึกงานนี้ → <b class="'+((remQ-q.hq)<0?'up':'down')+'">'+num(remQ-q.hq)+'</b></td></tr>'+
+      '<tr><td>โควตา quali คงเหลือ (จากประวัติ)</td><td class="num">'+num(remL)+' หัว</td><td class="num muted">ถ้าบันทึกงานนี้ → <b class="'+((remL-q.hl)<0?'up':'down')+'">'+num(remL-q.hl)+'</b></td></tr>'+
     '</tbody></table>'+
-    '<button class="mini" style="margin-top:10px" onclick="logQuotaToHistory()">+ บันทึกจำนวนหัวนี้ ('+num(Math.round(qc.heads*100)/100)+' หัว) ลงประวัติการใช้ของ '+esc(qc.client.name)+'</button>'+
-    '<div class="muted" style="margin-top:6px">* ปุ่มบันทึก quotation ด้านล่างเก็บใบเสนอราคาไว้เฉยๆ ไม่ตัดโควตา — โควตาตัดจากประวัติการใช้เท่านั้น</div>'+
-    (after<0?'<div class="warn" style="margin-top:10px">⚠️ เกินโควตา '+qc.pool+' อยู่ '+num(Math.round(-after*100)/100)+' หัว</div>':'');
+    '<button class="mini" style="margin-top:10px" onclick="logQuotaToHistory()">+ บันทึกจำนวนหัวนี้ (quanti '+num(q.hq)+' / quali '+num(q.hl)+') ลงประวัติการใช้ของ '+esc(c.name)+'</button>'+
+    '<div class="muted" style="margin-top:6px">โควตาตัดจาก "ประวัติการใช้" เท่านั้น (ปุ่มด้านบน) — ปุ่ม "บันทึก quotation" เก็บใบเสนอราคาเฉยๆ</div>';
 }
 function renderQuotaSaved(){
   var b=document.getElementById('qHistBody'); if(!b) return;
@@ -1334,25 +1368,23 @@ function renderQuotaSaved(){
     var c=clientById(r.clientId);
     return '<tr'+(cur&&cur.id===r.id?' class="hi"':'')+'><td>'+r.date+'<br><span class="muted">'+r.code+'</span></td>'+
       '<td>'+esc(c?c.name:'(ลูกค้าถูกลบ)')+'<br><span class="muted">'+esc(r.project||r.company||'—')+'</span></td>'+
-      '<td><span class="pill">'+esc(r.pool||'')+'</span></td>'+
-      '<td class="num">'+money(r.priceAtSave||0)+'</td>'+
-      '<td class="num"><b>'+num(Math.round((r.headsCharged||0)*100)/100)+'</b></td>'+
+      '<td class="num">'+money(r.quotationSum||r.priceAtSave||0)+'</td>'+
+      '<td class="num">q '+num(r.headsQuanti||0)+'<br>ql '+num(r.headsQuali||0)+'</td>'+
       '<td class="act"><button class="mini" onclick="openQuotaQuote(\''+r.id+'\')">เปิด/แก้</button> '+
       '<button class="mini" onclick="dupQuotaQuote(\''+r.id+'\')">ทำสำเนา</button> '+
       '<button class="x" onclick="delQuotaQuote(\''+r.id+'\')">×</button></td></tr>';
-  }).join(''):'<tr><td colspan="6" class="empty">ยังไม่มีงานโควตาที่บันทึกไว้</td></tr>';
+  }).join(''):'<tr><td colspan="5" class="empty">ยังไม่มี quotation โควตาที่บันทึกไว้</td></tr>';
 }
 function saveQuotaQuote(){
   calc();
-  var qc=quotaCalc();
-  if(!qc.client){ toast('เลือกลูกค้ารายปีก่อนบันทึก'); return; }
-  if(qc.price<=0){ toast('ยังไม่มีราคา — ใส่ทีม / RD / ค่าใช้จ่ายก่อน'); return; }
-  if(qc.per<=0){ toast('ลูกค้านี้ยังไม่ได้ตั้งราคาต่อหัว '+qc.pool); return; }
+  var q=quotationSum();
+  if(!q.client){ toast('เลือกลูกค้าก่อนบันทึก'); return; }
+  if(q.sum<=0){ toast('ยังไม่มียอด quotation — ใส่บรรทัด RD (จำนวนหัว + x) ก่อน'); return; }
   var rec=JSON.parse(JSON.stringify(cur));
-  rec.kind='quota'; rec.headsCharged=qc.heads; rec.priceAtSave=qc.price; rec.perHead=qc.per;
+  rec.kind='quota'; rec.quotationSum=q.sum; rec.headsQuanti=q.hq; rec.headsQuali=q.hl;
   if(cur.id){ for(var i=0;i<DB.qquotes.length;i++) if(DB.qquotes[i].id===cur.id) DB.qquotes[i]=rec; toast('แก้ไข '+rec.code+' แล้ว'); }
   else { DB.seqQ=(DB.seqQ||0)+1; rec.id=uid(); rec.code='QT'+String(DB.seqQ).padStart(4,'0'); DB.qquotes.unshift(rec); cur.id=rec.id; cur.code=rec.code; toast('บันทึก '+rec.code+' แล้ว'); }
-  save(); renderQuotaSaved(); renderQuota();
+  save(); renderQuotaSaved(); renderQuotaTotals();
 }
 function newQuotaQuote(){
   var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
@@ -1490,13 +1522,15 @@ function delUsage(i){
 }
 /* ปุ่มบนแท็บโควตา: บันทึกจำนวนหัวที่คำนวณได้ ลงประวัติการใช้ของลูกค้า */
 function logQuotaToHistory(){
-  var qc=quotaCalc();
-  if(!qc.client){ toast('เลือกลูกค้าก่อน'); return; }
-  if(qc.heads<=0){ toast('ยังไม่มีจำนวนหัว — ใส่ราคาต่อหัว + ทำ quote ก่อน'); return; }
-  qc.client.usage=qc.client.usage||[];
-  qc.client.usage.push({id:uid(), date:today(), note:(cur.project||cur.company||'งานโควตา'), pool:qc.pool, heads:Math.round(qc.heads*100)/100});
-  save(); renderQuota();
-  toast('บันทึก '+num(Math.round(qc.heads*100)/100)+' หัว ('+qc.pool+') ลงประวัติ '+qc.client.name+' แล้ว');
+  var q=quotationSum();
+  if(!q.client){ toast('เลือกลูกค้าก่อน'); return; }
+  if(q.hq<=0 && q.hl<=0){ toast('ยังไม่มีจำนวนหัว — ใส่บรรทัด RD ก่อน'); return; }
+  q.client.usage=q.client.usage||[];
+  var note=(cur.project||cur.company||'งานโควตา');
+  if(q.hq>0) q.client.usage.push({id:uid(), date:today(), note:note, pool:'quanti', heads:q.hq});
+  if(q.hl>0) q.client.usage.push({id:uid(), date:today(), note:note, pool:'quali', heads:q.hl});
+  save(); renderQuotaTotals();
+  toast('บันทึกลงประวัติ '+q.client.name+' แล้ว (quanti '+num(q.hq)+' / quali '+num(q.hl)+')');
 }
 
 /* init */
