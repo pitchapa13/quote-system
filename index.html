@@ -1072,7 +1072,7 @@ function saveQuote(){
     DB.seq++; rec.id=uid(); rec.code='Q'+String(DB.seq).padStart(4,'0');
     DB.quotes.unshift(rec); cur.id=rec.id; cur.code=rec.code; toast('บันทึก '+rec.code+' แล้ว');
   }
-  save(); document.getElementById('histCount').textContent=DB.quotes.length; markEditing();
+  save(); updateHistCount(); markEditing();
 }
 function newQuote(){
   var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
@@ -1096,15 +1096,13 @@ function renderHist(){
   if(!canStore){ warn.classList.remove('hide');
     warn.textContent='เบราว์เซอร์นี้บันทึกถาวรไม่ได้ (เช่นเปิดในโหมดพรีวิว) — ข้อมูลจะหายเมื่อปิดหน้า แนะนำให้กด "สำรองข้อมูล (.json)" ไว้ หรือเปิดไฟล์นี้ตรงๆ ในเบราว์เซอร์'; }
   else warn.classList.add('hide');
-  var q=(document.getElementById('histSearch').value||'').toLowerCase();
-  var list=DB.quotes.filter(function(r){ return !q||((r.company||'')+' '+(r.project||'')).toLowerCase().indexOf(q)>=0; });
-  var keep=cur;
-  document.getElementById('histBody').innerHTML=list.length?list.map(function(r){
-    cur=r;
-    var tots=r.vars.map(function(v){ return varTotals(v).total; });
+  var qs=(document.getElementById('histSearch').value||'').toLowerCase();
+  function match(r){ return !qs||((r.company||'')+' '+(r.project||'')).toLowerCase().indexOf(qs)>=0; }
+  var rows=[], keep=cur;
+  (DB.quotes||[]).forEach(function(r){ if(!match(r)) return;
+    cur=r; var tots=r.vars.map(function(v){ return varTotals(v).total; }); cur=keep;
     var lo=Math.min.apply(null,tots), hi=Math.max.apply(null,tots);
-    cur=keep;
-    return '<tr><td>'+r.date+'<br><span class="muted">'+r.code+'</span></td>'+
+    rows.push('<tr><td>'+r.date+'<br><span class="muted">'+r.code+'</span></td>'+
       '<td>'+esc(r.company||'—')+'</td>'+
       '<td>'+esc(r.project||'—')+'<br><span class="muted">'+r.vars.length+' variation: '+
         r.vars.map(function(v,i){ return esc(vName(v,i)); }).join(' · ')+'</span></td>'+
@@ -1112,11 +1110,23 @@ function renderHist(){
         '<br><span class="muted">'+r.vars.length+' ตัวเลือก</span></td>'+
       '<td class="act"><button class="mini" onclick="openQuote(\''+r.id+'\')">เปิด/แก้</button> '+
       '<button class="mini" onclick="dupQuote(\''+r.id+'\')">ทำสำเนา</button> '+
-      '<button class="x" onclick="delQuote(\''+r.id+'\')">×</button></td></tr>';
-  }).join(''):'<tr><td colspan="5" class="empty">ยังไม่มี quote ที่บันทึกไว้</td></tr>';
+      '<button class="x" onclick="delQuote(\''+r.id+'\')">×</button></td></tr>');
+  });
+  (DB.qquotes||[]).forEach(function(r){ if(!match(r)) return;
+    var cl=clientById(r.clientId);
+    rows.push('<tr><td>'+r.date+'<br><span class="muted">'+r.code+'</span></td>'+
+      '<td>'+esc(r.company||(cl?cl.name:'')||'—')+' <span class="pill">รายปี</span></td>'+
+      '<td>'+esc(r.project||'—')+'<br><span class="muted">โควตา · quanti '+num(r.headsQuanti||0)+' / quali '+num(r.headsQuali||0)+' หัว</span></td>'+
+      '<td class="num"><b>'+money(r.quotationSum||0)+'</b><br><span class="muted">quotation</span></td>'+
+      '<td class="act"><button class="mini" onclick="openQuotaQuote(\''+r.id+'\')">เปิด/แก้</button> '+
+      '<button class="mini" onclick="dupQuotaQuote(\''+r.id+'\')">ทำสำเนา</button> '+
+      '<button class="x" onclick="delQuotaQuote(\''+r.id+'\')">×</button></td></tr>');
+  });
   cur=keep;
-  document.getElementById('histCount').textContent=DB.quotes.length;
+  document.getElementById('histBody').innerHTML=rows.length?rows.join(''):'<tr><td colspan="5" class="empty">ยังไม่มี quote ที่บันทึกไว้</td></tr>';
+  updateHistCount();
 }
+function updateHistCount(){ var el=document.getElementById('histCount'); if(el) el.textContent=(DB.quotes.length+(DB.qquotes?DB.qquotes.length:0)); }
 function openQuote(id){
   var r=DB.quotes.filter(function(x){return x.id===id;})[0]; if(!r) return;
   stashCur(); cur=JSON.parse(JSON.stringify(r)); cur.kind='normal'; cur.vars.forEach(fixVar); vi=0;
@@ -1382,9 +1392,14 @@ function saveQuotaQuote(){
   if(q.sum<=0){ toast('ยังไม่มียอด quotation — ใส่บรรทัด RD (จำนวนหัว + x) ก่อน'); return; }
   var rec=JSON.parse(JSON.stringify(cur));
   rec.kind='quota'; rec.quotationSum=q.sum; rec.headsQuanti=q.hq; rec.headsQuali=q.hl;
-  if(cur.id){ for(var i=0;i<DB.qquotes.length;i++) if(DB.qquotes[i].id===cur.id) DB.qquotes[i]=rec; toast('แก้ไข '+rec.code+' แล้ว'); }
-  else { DB.seqQ=(DB.seqQ||0)+1; rec.id=uid(); rec.code='QT'+String(DB.seqQ).padStart(4,'0'); DB.qquotes.unshift(rec); cur.id=rec.id; cur.code=rec.code; toast('บันทึก '+rec.code+' แล้ว'); }
-  save(); renderQuotaSaved(); renderQuotaTotals();
+  var msg;
+  if(cur.id){ for(var i=0;i<DB.qquotes.length;i++) if(DB.qquotes[i].id===cur.id) DB.qquotes[i]=rec; msg='แก้ไข '+rec.code+' แล้ว'; }
+  else { DB.seqQ=(DB.seqQ||0)+1; rec.id=uid(); rec.code='QT'+String(DB.seqQ).padStart(4,'0'); DB.qquotes.unshift(rec); msg='บันทึก '+rec.code+' แล้ว'; }
+  save();
+  /* ล้างหน้า พร้อมลงลูกค้าใหม่ */
+  cur=blankQ(); vi=0; DB.draftQ=null;
+  fillForm(); renderQuotaClientSelect(); renderQuota(); renderQuotaSaved(); updateHistCount();
+  toast(msg+' — ล้างหน้าให้ลงลูกค้าใหม่ได้เลย');
 }
 function newQuotaQuote(){
   var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
@@ -1407,7 +1422,7 @@ function dupQuotaQuote(id){
 function delQuotaQuote(id){
   DB.qquotes=(DB.qquotes||[]).filter(function(x){return x.id!==id;});
   if(cur&&cur.id===id){ cur.id=null; cur.code=null; }
-  save(); renderQuotaSaved(); renderQuota();
+  save(); renderQuotaSaved(); if(mode==='quota') renderQuota(); renderHist();
 }
 /* ── ลูกค้ารายปี (ตั้งค่า) ── */
 function renderClients(){
@@ -1543,7 +1558,7 @@ function startApp(final){
   document.getElementById('qDate').value=cur.date||today();
   document.getElementById('qVat').checked=!!cur.vat;
   renderVTabs(); syncVarUI(); renderSettings(); markEditing();
-  document.getElementById('histCount').textContent=DB.quotes.length;
+  updateHistCount();
   if(final) booted=true;
   if(lastSync==='' && DB.updatedAt){
     try{ var d=new Date(DB.updatedAt),p=function(n){return (n<10?'0':'')+n;};
