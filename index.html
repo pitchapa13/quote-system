@@ -138,14 +138,15 @@
   </div>
 
   <div class="card hide" id="textGen">
-    <h2>สร้างจากข้อความ <small>พิมพ์รายการเป็นข้อความ แล้วกด "สร้างตาราง" ระบบจะกรอกลงตาราง ทีม / RD / อื่นๆ ให้</small></h2>
+    <h2>สร้างจากข้อความ / AI <small>พิมพ์รายการเอง แล้วกด "สร้างตาราง" — หรือบรรยายงานเป็นภาษาคนแล้วกด "ให้ AI แตกให้"</small></h2>
     <textarea id="genText" rows="9" placeholder="พิมพ์ทีละบรรทัด คั่นด้วย , (คอมมา) — หัวข้อขึ้นต้นด้วย #&#10;# ทีม&#10;Maew, 1          (ชื่อคน, จำนวนวัน)&#10;Intern, 6, 3      (ชื่อคน, วัน, จำนวนคน)&#10;# RD&#10;quanti, 400        (ถ้าชื่อตรง preset ดึงราคา/หัวให้)&#10;quali, 500, 115    (ชื่อ, ราคา/หัว, จำนวนหัว)&#10;# อื่นๆ&#10;interview, 250, 115"></textarea>
     <div class="bar" style="margin-top:10px">
       <button class="mini" onclick="fillTextTemplate()">ใส่ตัวอย่างรูปแบบ</button>
-      <span class="muted">ระบบจะแทนที่เฉพาะหมวดที่มีในข้อความ (ทีม/RD/อื่นๆ) ของ variation ที่เปิดอยู่</span>
       <div class="spacer"></div>
-      <button class="btn" onclick="genFromText()">สร้างตารางจากข้อความ ↓</button>
+      <button class="mini" onclick="genFromText()">สร้างตาราง (พิมพ์รายการ) ↓</button>
+      <button class="btn" id="aiBtn" onclick="aiGenerate()">🤖 ให้ AI แตกให้ (พิมพ์อิสระ) ↓</button>
     </div>
+    <div class="muted" style="margin-top:6px">แทนที่เฉพาะหมวดที่มีในข้อความ (ทีม/RD/อื่นๆ) ของ variation ที่เปิดอยู่ · ปุ่ม AI ต้องตั้ง endpoint ในแท็บ "ตั้งค่าทีม / เรท" ก่อน</div>
   </div>
 
   <div class="card">
@@ -373,6 +374,13 @@
       <tbody id="otherBody"></tbody>
     </table></div>
     <button class="btn ghost" style="margin-top:12px" onclick="addPreset('other')">+ เพิ่มรายการ</button>
+  </div>
+
+  <div class="card">
+    <h2>AI: บอกงาน → คำนวณลงฟอร์ม <small>ใส่ URL ของ Cloudflare Worker (quote-ai-worker) ครั้งเดียว — คีย์ Anthropic เก็บที่ Worker ไม่อยู่ในเว็บ</small></h2>
+    <label>AI endpoint (Worker URL)</label>
+    <input id="setAiUrl" placeholder="https://quote-ai-worker.xxxx.workers.dev" oninput="DB.cfg.aiUrl=this.value.trim(); save();">
+    <div class="muted" style="margin-top:6px">ตั้งแล้ว ปุ่ม "🤖 ให้ AI แตกให้" ในแท็บ "สร้าง Quote" จะบรรยายงานเป็นภาษาคน → ระบบกรอกทีม/RD/ค่าใช้จ่ายให้</div>
   </div>
 </section>
 
@@ -1181,6 +1189,49 @@ function fillTextTemplate(){
     '# อื่นๆ\ninterview, 250, 115\nanalysis/reporting, 40000, 1';
   toast('ใส่ตัวอย่างให้แล้ว — แก้ตัวเลขแล้วกด "สร้างตาราง"');
 }
+/* แปลงผล AI → เติมฟอร์ม (ตรรกะเดียวกับ parseQuoteText: ดึงราคาจาก preset ให้) */
+function applyAiLines(data){
+  var v=V(); v.useAlloc=false;
+  var team=(data.team||[]).map(function(t){
+    var per=DB.people.filter(function(p){return (p.name||'').toLowerCase()===String(t.name||'').toLowerCase();})[0];
+    return {id:uid(), pid:per?per.id:'', cpd:per?Math.round(dayRate(per)):0,
+      n:(per&&per.multi?(Number(t.people)||1):1), md:Number(t.days)||0};
+  });
+  var resp=(data.resp||[]).map(function(r){
+    var pr=DB.respPresets.filter(function(x){return (x.name||'').toLowerCase()===String(r.label||'').toLowerCase();})[0];
+    var cph=(r.pricePerHead!=null&&r.pricePerHead!=='')?Number(r.pricePerHead):(pr?pr.price:0);
+    return {label:String(r.label||''), cph:Number(cph)||0, heads:Number(r.heads)||0};
+  });
+  var other=(data.other||[]).map(function(o){
+    var po=DB.otherPresets.filter(function(x){return (x.name||'').toLowerCase()===String(o.label||'').toLowerCase();})[0];
+    var price=(o.price!=null&&o.price!=='')?Number(o.price):(po?po.price:0);
+    return {label:String(o.label||''), price:Number(price)||0, qty:Number(o.qty)||1};
+  });
+  if(team.length)  v.team=team;
+  if(resp.length)  v.resp=resp;
+  if(other.length) v.other=other;
+  renderAlloc(); renderSheet(); calc();
+  return {team:team.length, resp:resp.length, other:other.length};
+}
+function aiGenerate(){
+  if(!cur) return;
+  var url=(DB.cfg.aiUrl||'').trim();
+  if(!url){ toast('ยังไม่ได้ตั้ง AI endpoint — ไปที่แท็บ "ตั้งค่าทีม / เรท"'); showTab('set'); return; }
+  var text=(document.getElementById('genText').value||'').trim();
+  if(!text){ toast('พิมพ์บรรยายงานก่อน'); return; }
+  var btn=document.getElementById('aiBtn'), old=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='🤖 กำลังคิด...'; }
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:text, context:{people:DB.people, respPresets:DB.respPresets, otherPresets:DB.otherPresets}})})
+  .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+  .then(function(res){
+    if(!res.ok || res.d.error){ toast('AI: '+(res.d.error||('error '+'HTTP'))); return; }
+    var n=applyAiLines(res.d);
+    toast('AI แตกฟอร์มให้แล้ว — ทีม '+n.team+' · RD '+n.resp+' · อื่นๆ '+n.other+' · ตรวจตัวเลขอีกที');
+  })
+  .catch(function(e){ toast('เรียก AI ไม่ได้: '+e.message); })
+  .then(function(){ if(btn){ btn.disabled=false; btn.textContent=old; } });
+}
 function newQuote(){
   var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
   if(dirty && !confirm('ล้างตารางทั้งหมดเพื่อเริ่ม quote ใหม่?\n(งานที่บันทึกไว้แล้วในแท็บประวัติจะไม่หาย)')) return;
@@ -1324,6 +1375,7 @@ function renderSettings(){
         '<td><button class="x" onclick="delPreset(\''+kind+'\','+i+')">×</button></td></tr>';
     }).join('');
   });
+  var aiEl=document.getElementById('setAiUrl'); if(aiEl) aiEl.value=DB.cfg.aiUrl||'';
   renderClients();
 }
 function setPerson(i,k,v){
