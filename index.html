@@ -131,6 +131,11 @@
 <!-- ══════════ NEW QUOTE ══════════ -->
 <section id="pane-new">
 
+  <div class="bar" style="margin-bottom:14px">
+    <div class="spacer"></div>
+    <button class="mini" onclick="clearBoard()">🗑️ ล้างกระดาน (เริ่มใหม่)</button>
+  </div>
+
   <div class="card">
     <h2>ข้อมูลงาน</h2>
     <div class="grid3">
@@ -1064,16 +1069,25 @@ function saveQuote(){
   calc();
   if(!cur.company.trim()&&!cur.project.trim()){ toast('ใส่ชื่อบริษัทหรือชื่อโปรเจกต์ก่อนบันทึก'); return; }
   if(cur.vars.every(function(v){ return varTotals(v).total<=0; })){ toast('ยังไม่มีราคา — ใส่ทีมหรือค่าใช้จ่ายก่อน'); return; }
-  var rec=JSON.parse(JSON.stringify(cur));
+  var rec=JSON.parse(JSON.stringify(cur)), msg;
   if(cur.id){
     for(var i=0;i<DB.quotes.length;i++) if(DB.quotes[i].id===cur.id) DB.quotes[i]=rec;
-    toast('แก้ไข '+rec.code+' แล้ว');
+    msg='แก้ไข '+rec.code+' แล้ว';
   }else{
     DB.seq++; rec.id=uid(); rec.code='Q'+String(DB.seq).padStart(4,'0');
-    DB.quotes.unshift(rec); cur.id=rec.id; cur.code=rec.code; toast('บันทึก '+rec.code+' แล้ว');
+    DB.quotes.unshift(rec); msg='บันทึก '+rec.code+' แล้ว';
   }
-  save(); updateHistCount(); markEditing();
+  save(); updateHistCount();
+  /* ล้างกระดานอัตโนมัติ พร้อมเริ่มงานใหม่ */
+  cur=blank(); vi=0; DB.draft=null;
+  document.getElementById('qCompany').value='';
+  document.getElementById('qProject').value='';
+  document.getElementById('qDate').value=cur.date;
+  document.getElementById('qVat').checked=false;
+  syncVarUI(); markEditing();
+  toast(msg+' — ล้างกระดานให้เริ่มใหม่ได้เลย');
 }
+function clearBoard(){ if(mode==='quota') newQuotaQuote(); else newQuote(); }
 function newQuote(){
   var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
   if(dirty && !confirm('ล้างตารางทั้งหมดเพื่อเริ่ม quote ใหม่?\n(งานที่บันทึกไว้แล้วในแท็บประวัติจะไม่หาย)')) return;
