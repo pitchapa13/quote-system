@@ -30,9 +30,10 @@
     display:flex; align-items:center; gap:8px; flex-wrap:wrap}
   .card h2 small{font-weight:400; color:var(--muted); font-size:12.5px}
   label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:4px; font-weight:600}
-  input,select{width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px;
+  input,select,textarea{width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px;
     font-family:inherit; font-size:14px; background:#fff; color:var(--ink)}
-  input:focus,select:focus{outline:2px solid var(--brand-soft); border-color:var(--brand)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--brand-soft); border-color:var(--brand)}
+  textarea#genText{font-family:"Cascadia Code","Consolas",monospace; font-size:13px; line-height:1.6; resize:vertical}
   input[type=number]{text-align:right; font-variant-numeric:tabular-nums}
   .grid3{display:grid; grid-template-columns:1.4fr 1.4fr .8fr; gap:12px}
   @media(max-width:700px){.grid3{grid-template-columns:1fr}}
@@ -134,6 +135,17 @@
   <div class="bar" style="margin-bottom:14px">
     <div class="spacer"></div>
     <button class="mini" onclick="clearBoard()">🗑️ ล้างกระดาน (เริ่มใหม่)</button>
+  </div>
+
+  <div class="card hide" id="textGen">
+    <h2>สร้างจากข้อความ <small>พิมพ์รายการเป็นข้อความ แล้วกด "สร้างตาราง" ระบบจะกรอกลงตาราง ทีม / RD / อื่นๆ ให้</small></h2>
+    <textarea id="genText" rows="9" placeholder="พิมพ์ทีละบรรทัด คั่นด้วย , (คอมมา) — หัวข้อขึ้นต้นด้วย #&#10;# ทีม&#10;Maew, 1          (ชื่อคน, จำนวนวัน)&#10;Intern, 6, 3      (ชื่อคน, วัน, จำนวนคน)&#10;# RD&#10;quanti, 400        (ถ้าชื่อตรง preset ดึงราคา/หัวให้)&#10;quali, 500, 115    (ชื่อ, ราคา/หัว, จำนวนหัว)&#10;# อื่นๆ&#10;interview, 250, 115"></textarea>
+    <div class="bar" style="margin-top:10px">
+      <button class="mini" onclick="fillTextTemplate()">ใส่ตัวอย่างรูปแบบ</button>
+      <span class="muted">ระบบจะแทนที่เฉพาะหมวดที่มีในข้อความ (ทีม/RD/อื่นๆ) ของ variation ที่เปิดอยู่</span>
+      <div class="spacer"></div>
+      <button class="btn" onclick="genFromText()">สร้างตารางจากข้อความ ↓</button>
+    </div>
   </div>
 
   <div class="card">
@@ -650,6 +662,7 @@ function applyModeUI(){
   document.getElementById('sumQuota').classList.toggle('hide',mode!=='quota');
   document.getElementById('qHistCard').classList.toggle('hide',mode!=='quota');
   document.getElementById('diffSection').classList.toggle('hide',mode==='quota');
+  document.getElementById('textGen').classList.toggle('hide',mode!=='new');
   if(mode==='quota'){ renderQuotaClientSelect(); renderQuotaSaved(); renderQuota(); }
 }
 function switchMode(t){
@@ -1088,6 +1101,86 @@ function saveQuote(){
   toast(msg+' — ล้างกระดานให้เริ่มใหม่ได้เลย');
 }
 function clearBoard(){ if(mode==='quota') newQuotaQuote(); else newQuote(); }
+
+/* ═══════ สร้างตารางจากข้อความ ═══════ */
+function sectionOf(low){
+  if(/^(ทีม|ทีมงาน|team|คน)$/.test(low)) return 'team';
+  if(/^(rd|resp|respondent|respondent compensation|ค่าตอบแทน|ค่าตอบแทน rd)$/.test(low)) return 'resp';
+  if(/^(อื่น|อื่นๆ|other|freelance|ค่าใช้จ่าย|ค่าใช้จ่ายอื่น)$/.test(low)) return 'other';
+  return '';
+}
+function inferSection(name){
+  var n=(name||'').toLowerCase();
+  if(DB.people.some(function(p){return (p.name||'').toLowerCase()===n;})) return 'team';
+  if(DB.respPresets.some(function(r){return (r.name||'').toLowerCase()===n;})) return 'resp';
+  if(DB.otherPresets.some(function(r){return (r.name||'').toLowerCase()===n;})) return 'other';
+  return 'other';
+}
+/* แตก 1 บรรทัด → { label, nums[] } รองรับทั้งคั่นด้วย , | tab และเว้นวรรค */
+function parseFields(bare){
+  var label, rest;
+  if(/[,|\t]/.test(bare)){
+    var parts=bare.split(/\s*[,|\t]\s*/).map(function(s){return s.trim();}).filter(Boolean);
+    label=parts[0]||''; rest=parts.slice(1);
+  } else {
+    var toks=bare.split(/\s+/), i=0, lab=[];
+    while(i<toks.length && !/\d/.test(toks[i])){ lab.push(toks[i]); i++; }   /* label = โทเคนนำที่ไม่มีตัวเลข */
+    if(lab.length){ label=lab.join(' '); rest=toks.slice(i); }
+    else { label=toks[0]||''; rest=toks.slice(1); }
+  }
+  var nums=rest.map(function(s){ return Number(String(s).replace(/[^0-9.\-]/g,'')); })
+               .filter(function(n){ return !isNaN(n); });
+  return {label:label, nums:nums};
+}
+function parseQuoteText(t){
+  var out={team:[],resp:[],other:[]}, sec='';
+  (t||'').split(/\r?\n/).forEach(function(raw){
+    var line=raw.replace(/\(.*?\)/g,'').trim();      /* ตัดคอมเมนต์ในวงเล็บทิ้ง */
+    if(!line) return;
+    var bare=line.replace(/^#+\s*/,'').trim(), low=bare.toLowerCase();
+    if(/^#/.test(line) || sectionOf(low)){ var s=sectionOf(low); if(s){ sec=s; return; } }
+    var f=parseFields(bare); if(!f.label) return;
+    var nums=f.nums, use=sec||inferSection(f.label);
+    if(use==='team'){
+      var per=DB.people.filter(function(p){return (p.name||'').toLowerCase()===f.label.toLowerCase();})[0];
+      out.team.push({id:uid(), pid:per?per.id:'', cpd:per?Math.round(dayRate(per)):0,
+        n:(per&&per.multi?(nums[1]||1):1), md:nums[0]||0});
+    } else if(use==='resp'){
+      var pr=DB.respPresets.filter(function(r){return (r.name||'').toLowerCase()===f.label.toLowerCase();})[0];
+      var cph,heads;
+      if(nums.length>=2){ cph=nums[0]; heads=nums[1]; }
+      else if(nums.length===1){ if(pr){ cph=pr.price; heads=nums[0]; } else { cph=0; heads=nums[0]; } }
+      else { cph=pr?pr.price:0; heads=0; }
+      out.resp.push({label:f.label, cph:cph, heads:heads});
+    } else {
+      var po=DB.otherPresets.filter(function(r){return (r.name||'').toLowerCase()===f.label.toLowerCase();})[0];
+      var price,qty;
+      if(nums.length>=2){ price=nums[0]; qty=nums[1]; }
+      else if(nums.length===1){ if(po){ price=po.price; qty=nums[0]; } else { price=nums[0]; qty=1; } }
+      else { price=po?po.price:0; qty=1; }
+      out.other.push({label:f.label, price:price, qty:qty});
+    }
+  });
+  return out;
+}
+function genFromText(){
+  if(!cur){ return; }
+  var p=parseQuoteText(document.getElementById('genText').value);
+  if(!p.team.length && !p.resp.length && !p.other.length){ toast('ไม่พบรายการในข้อความ — กด "ใส่ตัวอย่างรูปแบบ" ดูได้'); return; }
+  var v=V(); v.useAlloc=false;
+  if(p.team.length)  v.team=p.team;
+  if(p.resp.length)  v.resp=p.resp;
+  if(p.other.length) v.other=p.other;
+  renderAlloc(); renderSheet(); calc();
+  toast('สร้างตารางแล้ว — ทีม '+p.team.length+' · RD '+p.resp.length+' · อื่นๆ '+p.other.length+' บรรทัด');
+}
+function fillTextTemplate(){
+  document.getElementById('genText').value=
+    '# ทีม\nMaew, 1\nMata, 3\nTonnam, 3\nIntern, 6, 3\n\n'+
+    '# RD\nquanti, 400\nquali, 500, 115\n\n'+
+    '# อื่นๆ\ninterview, 250, 115\nanalysis/reporting, 40000, 1';
+  toast('ใส่ตัวอย่างให้แล้ว — แก้ตัวเลขแล้วกด "สร้างตาราง"');
+}
 function newQuote(){
   var dirty=(cur&&((cur.company||'').trim()||(cur.project||'').trim()||varTotals(V()).cost>0));
   if(dirty && !confirm('ล้างตารางทั้งหมดเพื่อเริ่ม quote ใหม่?\n(งานที่บันทึกไว้แล้วในแท็บประวัติจะไม่หาย)')) return;
