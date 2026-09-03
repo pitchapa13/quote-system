@@ -114,7 +114,7 @@
 <header>
   <h1>ระบบ Quote ราคางานวิจัย</h1>
   <p>ทีม × manday + ค่าตอบแทน RD + ค่าใช้จ่ายอื่น • เทียบได้ถึง 10 variation • เก็บประวัติ quote
-    <span style="opacity:.65; margin-left:8px">v1.1 · 17 ส.ค. 2026</span></p>
+    <span style="opacity:.65; margin-left:8px">v1.2 · 18 ส.ค. 2026</span></p>
 </header>
 
 <nav>
@@ -325,7 +325,7 @@
 <!-- ══════════ SETTINGS ══════════ -->
 <section id="pane-set" class="hide">
   <div class="card">
-    <h2>ทีมงาน <small>ใส่เงินเดือน + OH ระบบจะหารเป็นราคาต่อวันให้</small></h2>
+    <h2>ตำแหน่ง (เรทต่อวัน) <small>ใส่เงินเดือน + OH ระบบจะหารเป็นราคาต่อวันให้ — quote คิดตามตำแหน่ง + จำนวนคน</small></h2>
     <div class="bar" style="margin-bottom:14px">
       <div style="width:170px"><label>OH เริ่มต้น (%)</label>
         <input id="setOh" type="number" min="0" step="5" oninput="setCfg('oh',this.value)"></div>
@@ -340,13 +340,13 @@
         <input id="setHpd" type="number" min="1" step="0.5" oninput="setCfg('hpd',this.value)"></div>
     </div>
     <div class="scroll">
-      <table class="sheet" style="min-width:700px">
-        <thead><tr><th class="l">ชื่อ</th><th>เงินเดือน</th><th>OH %</th>
-          <th>Salary + OH</th><th>= ราคา/วัน</th><th>ใส่จำนวนคนได้</th><th></th></tr></thead>
-        <tbody id="peopleBody"></tbody>
+      <table class="sheet" style="min-width:640px">
+        <thead><tr><th class="l">ตำแหน่ง</th><th>เงินเดือน</th><th>OH %</th>
+          <th>Salary + OH</th><th>= ราคา/วัน</th><th></th></tr></thead>
+        <tbody id="positionBody"></tbody>
       </table>
     </div>
-    <button class="btn ghost" style="margin-top:12px" onclick="addPerson()">+ เพิ่มคน</button>
+    <button class="btn ghost" style="margin-top:12px" onclick="addPosition()">+ เพิ่มตำแหน่ง</button>
   </div>
 
   <div class="card">
@@ -570,6 +570,13 @@ var DB={
     {id:'p4',name:'mm',      salary:30000,  oh:0},
     {id:'p5',name:'Intern',  salary:15000,  oh:0, multi:true}
   ],
+  positions:[
+    {id:'pos1',name:'MD',             salary:160000, oh:50},
+    {id:'pos2',name:'Senior Consult', salary:35000,  oh:50},
+    {id:'pos3',name:'Junior Consult', salary:30000,  oh:0},
+    {id:'pos4',name:'Intern',         salary:15000,  oh:0},
+    {id:'pos5',name:'Panel Manager',  salary:0,      oh:0}
+  ],
   taskPresets:['Prepare for kickoff','Landscape & research','Quanti','Quali','Analysis',
                'Presentation deck','Presentation to client','Meeting with client'],
   respPresets:[ {id:'r1',name:'quanti',price:100}, {id:'r2',name:'quali',price:500} ],
@@ -585,6 +592,7 @@ function applyData(d){
   try{
     if(d.cfg) for(var k in d.cfg) DB.cfg[k]=d.cfg[k];
     if(d.people&&d.people.length) DB.people=d.people;
+    if(d.positions&&d.positions.length) DB.positions=d.positions;
     if(d.taskPresets&&d.taskPresets.length) DB.taskPresets=d.taskPresets;
     if(d.respPresets) DB.respPresets=d.respPresets;
     if(d.otherPresets) DB.otherPresets=d.otherPresets;
@@ -610,16 +618,21 @@ function num(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFractionDi
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function person(id){ return DB.people.filter(function(p){return p.id===id;})[0]; }
+function positionById(id){ return (DB.positions||[]).filter(function(p){return p.id===id;})[0]; }
+/* ตำแหน่งของบรรทัดทีม — ใหม่ใช้ posId, quote เก่าใช้ pid (คน) เป็น fallback */
+function role(l){ return positionById(l.posId) || person(l.pid); }
+function posOpts(sel){ return '<option value="">— เลือกตำแหน่ง —</option>'+(DB.positions||[]).map(function(p){
+  return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>'; }).join(''); }
 function salaryOh(p){ return p ? p.salary*(1+(Number(p.oh)||0)/100) : 0; }
 function dayRate(p){ return p ? salaryOh(p)/(DB.cfg.dpm||20) : 0; }
 
 /* ═══════ current quote ═══════ */
 var cur=null, vi=0;
 function newTeamLine(p){
-  return { id:uid(), pid:p?p.id:'', cpd:p?Math.round(dayRate(p)):0, n:1, md:0 };
+  return { id:uid(), posId:p?p.id:'', cpd:p?Math.round(dayRate(p)):0, n:1, md:0 };
 }
 function newVar(name){
-  var t=(DB.people.length?DB.people:[null]).map(function(p){ return newTeamLine(p); });
+  var t=(DB.positions.length?DB.positions:[null]).map(function(p){ return newTeamLine(p); });
   return { name:name, mults:{team:DB.cfg.mult, resp:DB.cfg.mult, other:DB.cfg.mult}, useAlloc:true,
     team:t,
     alloc:DB.taskPresets.map(function(n){ return {id:uid(), task:n, d:{}}; }),
@@ -746,7 +759,7 @@ function peopleOpts(sel){
     return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
 }
 /* ═══════ ตารางงาน × คน ═══════ */
-function lineName(l,i){ var p=person(l.pid); return p?p.name:'คนที่ '+(i+1); }
+function lineName(l,i){ var p=role(l); return p?p.name:'ตำแหน่งที่ '+(i+1); }
 function setUseAlloc(on){ V().useAlloc=!!on; renderAlloc(); renderSheet(); calc(); }
 function resetAllocTasks(){
   var v=V(), have={};
@@ -769,8 +782,8 @@ function renderAlloc(){
   if(!v.useAlloc) return;
   document.getElementById('allocHead').innerHTML='<tr><th class="l">งาน</th>'+
     v.team.map(function(l,i){
-      return '<th><div class="colhead"><select onchange="setTeam('+i+',\'pid\',this.value)">'+
-        peopleOpts(l.pid)+'</select><button class="x" title="ลบคนนี้ออกจาก quote" '+
+      return '<th><div class="colhead"><select onchange="setTeam('+i+',\'posId\',this.value)">'+
+        posOpts(l.posId)+'</select><button class="x" title="ลบตำแหน่งนี้ออกจาก quote" '+
         'onclick="delLine(\'team\','+i+')">×</button></div></th>'; }).join('')+
     '<th>รวมวัน</th><th>ต้นทุนงานนี้</th><th></th></tr>';
   document.getElementById('allocBody').innerHTML=
@@ -819,22 +832,20 @@ function renderSheet(){
   document.getElementById('thPrice').textContent='at profit';
 
   /* --- team --- */
-  h+='<tr class="sec"><td colspan="6">ทีมงาน (Name)'+
-     '<button class="addbtn" onclick="addLine(\'team\')">+ เพิ่มคนในทีม</button></td><td class="num">at cost</td>'+
+  h+='<tr class="sec"><td colspan="6">ทีมงาน (ตำแหน่ง)'+
+     '<button class="addbtn" onclick="addLine(\'team\')">+ เพิ่มบรรทัดทีม</button></td><td class="num">at cost</td>'+
      '<td class="w-n" style="background:var(--head)">×<input class="fill" type="number" min="0" step="0.1" value="'+num(M.team)+'" oninput="setMult(\'team\',this.value)" style="width:62px; display:inline-block" title="คูณกำไรเฉพาะบล็อกนี้"></td><td></td></tr>';
   v.team.forEach(function(l,i){
-    var p=person(l.pid), c=teamCost(v,l);
+    var p=role(l), c=teamCost(v,l);
     var mdCell = v.useAlloc
       ? '<td class="num calc" data-md="'+l.id+'" title="มาจากตารางงาน × คน"><b>'+num(toDisp(mdOf(v,l)))+'</b></td>'
       : '<td class="w-n"><input class="fill" type="number" min="0" step="0.5" value="'+toDisp(l.md)+'" oninput="setTeam('+i+',\'md\',this.value)"></td>';
     h+='<tr>'+
-      '<td class="w-name"><select onchange="setTeam('+i+',\'pid\',this.value)">'+peopleOpts(l.pid)+'</select></td>'+
+      '<td class="w-name"><select onchange="setTeam('+i+',\'posId\',this.value)">'+posOpts(l.posId)+'</select></td>'+
       '<td class="num calc">'+(p?money(p.salary):'—')+'</td>'+
       '<td class="num calc">'+(p?money(salaryOh(p)):'—')+'</td>'+
       '<td class="w-money"><input class="fill" type="number" step="1" value="'+l.cpd+'" oninput="setTeam('+i+',\'cpd\',this.value)"></td>'+
-      (p&&p.multi
-        ? '<td class="w-n"><input class="fill" type="number" min="0" step="1" value="'+l.n+'" oninput="setTeam('+i+',\'n\',this.value)" title="ระบุจำนวนคนได้"></td>'
-        : '<td class="num calc" title="ตำแหน่งนี้นับเป็น 1 คน — ถ้าต้องระบุจำนวน ให้ติ๊ก \'ใส่จำนวนคนได้\' ในแท็บตั้งค่า">1</td>')+
+      '<td class="w-n"><input class="fill" type="number" min="0" step="1" value="'+l.n+'" oninput="setTeam('+i+',\'n\',this.value)" title="จำนวนคน"></td>'+
       mdCell+
       '<td class="num calc">'+money(c)+'</td>'+
       '<td class="num calc"><b>'+money(c*M.team)+'</b></td>'+
@@ -884,12 +895,12 @@ function renderSheet(){
 
 function setTeam(i,k,val){
   var l=V().team[i];
-  if(k==='pid'){ l.pid=val; var p=person(val);
-    if(p){ l.cpd=Math.round(dayRate(p)); if(!p.multi) l.n=1; }
+  if(k==='posId'){ l.posId=val; l.pid=''; var p=positionById(val);
+    if(p){ l.cpd=Math.round(dayRate(p)); }
     renderSheet(); renderAlloc(); }
   else if(k==='md'){ l.md=fromDisp(val); }
   else { l[k]=Number(val)||0; }
-  if(k!=='pid') softRefresh();
+  if(k!=='posId') softRefresh();
   calc();
 }
 function setResp(i,k,val){
@@ -976,8 +987,8 @@ function vName(v,i){ return v.name||('Option '+LETTERS[i]); }
 function itemMatrix(){
   var groups=[
     {key:'team', title:'ทีมงาน', unit:'manday',
-     id:function(l){ var p=person(l.pid); return 'team:'+(p?p.name:l.pid||'?'); },
-     label:function(l){ var p=person(l.pid); return p?p.name:'(ยังไม่เลือกคน)'; },
+     id:function(l){ var p=role(l); return 'team:'+(p?p.name:(l.posId||l.pid||'?')); },
+     label:function(l){ var p=role(l); return p?p.name:'(ยังไม่เลือกตำแหน่ง)'; },
      qty:function(l,v){ return (Number(l.n)||0)*mdOf(v,l); },
      detail:function(l,v){ return (Number(l.n)||0)+' คน × '+num(toDisp(mdOf(v,l)))+(DB.cfg.unit==='hour'?' ชม.':' วัน'); },
      cost:function(l,v){ return teamCost(v,l); }},
@@ -1119,7 +1130,7 @@ function sectionOf(low){
 }
 function inferSection(name){
   var n=(name||'').toLowerCase();
-  if(DB.people.some(function(p){return (p.name||'').toLowerCase()===n;})) return 'team';
+  if((DB.positions||[]).some(function(p){return (p.name||'').toLowerCase()===n;})) return 'team';
   if(DB.respPresets.some(function(r){return (r.name||'').toLowerCase()===n;})) return 'resp';
   if(DB.otherPresets.some(function(r){return (r.name||'').toLowerCase()===n;})) return 'other';
   return 'other';
@@ -1150,9 +1161,9 @@ function parseQuoteText(t){
     var f=parseFields(bare); if(!f.label) return;
     var nums=f.nums, use=sec||inferSection(f.label);
     if(use==='team'){
-      var per=DB.people.filter(function(p){return (p.name||'').toLowerCase()===f.label.toLowerCase();})[0];
-      out.team.push({id:uid(), pid:per?per.id:'', cpd:per?Math.round(dayRate(per)):0,
-        n:(per&&per.multi?(nums[1]||1):1), md:nums[0]||0});
+      var pos=(DB.positions||[]).filter(function(p){return (p.name||'').toLowerCase()===f.label.toLowerCase();})[0];
+      out.team.push({id:uid(), posId:pos?pos.id:'', cpd:pos?Math.round(dayRate(pos)):0,
+        n:(nums[1]||1), md:nums[0]||0});
     } else if(use==='resp'){
       var pr=DB.respPresets.filter(function(r){return (r.name||'').toLowerCase()===f.label.toLowerCase();})[0];
       var cph,heads;
@@ -1184,7 +1195,7 @@ function genFromText(){
 }
 function fillTextTemplate(){
   document.getElementById('genText').value=
-    '# ทีม\nMaew, 1\nMata, 3\nTonnam, 3\nIntern, 6, 3\n\n'+
+    '# ทีม\nMD, 1\nSenior Consult, 3, 2\nJunior Consult, 5\nIntern, 6, 3\n\n'+
     '# RD\nquanti, 400\nquali, 500, 115\n\n'+
     '# อื่นๆ\ninterview, 250, 115\nanalysis/reporting, 40000, 1';
   toast('ใส่ตัวอย่างให้แล้ว — แก้ตัวเลขแล้วกด "สร้างตาราง"');
@@ -1193,9 +1204,9 @@ function fillTextTemplate(){
 function applyAiLines(data){
   var v=V(); v.useAlloc=false;
   var team=(data.team||[]).map(function(t){
-    var per=DB.people.filter(function(p){return (p.name||'').toLowerCase()===String(t.name||'').toLowerCase();})[0];
-    return {id:uid(), pid:per?per.id:'', cpd:per?Math.round(dayRate(per)):0,
-      n:(per&&per.multi?(Number(t.people)||1):1), md:Number(t.days)||0};
+    var pos=(DB.positions||[]).filter(function(p){return (p.name||'').toLowerCase()===String(t.name||'').toLowerCase();})[0];
+    return {id:uid(), posId:pos?pos.id:'', cpd:pos?Math.round(dayRate(pos)):0,
+      n:(Number(t.people)||1), md:Number(t.days)||0};
   });
   var resp=(data.resp||[]).map(function(r){
     var pr=DB.respPresets.filter(function(x){return (x.name||'').toLowerCase()===String(r.label||'').toLowerCase();})[0];
@@ -1222,7 +1233,7 @@ function aiGenerate(){
   var btn=document.getElementById('aiBtn'), old=btn?btn.textContent:'';
   if(btn){ btn.disabled=true; btn.textContent='🤖 กำลังคิด...'; }
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:text, context:{people:DB.people, respPresets:DB.respPresets, otherPresets:DB.otherPresets}})})
+    body:JSON.stringify({text:text, context:{people:DB.positions, respPresets:DB.respPresets, otherPresets:DB.otherPresets}})})
   .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
   .then(function(res){
     if(!res.ok || res.d.error){ toast('AI: '+(res.d.error||('error '+'HTTP'))); return; }
@@ -1352,17 +1363,15 @@ function renderSettings(){
   document.getElementById('setDpm').value=DB.cfg.dpm;
   document.getElementById('setUnit').value=DB.cfg.unit;
   document.getElementById('setHpd').value=DB.cfg.hpd;
-  document.getElementById('peopleBody').innerHTML=DB.people.map(function(p,i){
+  document.getElementById('positionBody').innerHTML=(DB.positions||[]).map(function(p,i){
     return '<tr>'+
-      '<td class="w-name"><input value="'+esc(p.name)+'" oninput="setPerson('+i+',\'name\',this.value)"></td>'+
-      '<td class="w-money"><input class="fill" type="number" min="0" step="1000" value="'+p.salary+'" oninput="setPerson('+i+',\'salary\',this.value)"></td>'+
-      '<td class="w-n"><input class="fill" type="number" min="0" step="5" value="'+p.oh+'" oninput="setPerson('+i+',\'oh\',this.value)"></td>'+
+      '<td class="w-name"><input value="'+esc(p.name)+'" oninput="setPosition('+i+',\'name\',this.value)"></td>'+
+      '<td class="w-money"><input class="fill" type="number" min="0" step="1000" value="'+p.salary+'" oninput="setPosition('+i+',\'salary\',this.value)"></td>'+
+      '<td class="w-n"><input class="fill" type="number" min="0" step="5" value="'+p.oh+'" oninput="setPosition('+i+',\'oh\',this.value)"></td>'+
       '<td class="num calc">'+money(salaryOh(p))+'</td>'+
       '<td class="num calc"><b>'+money(dayRate(p))+'</b></td>'+
-      '<td style="text-align:center"><input type="checkbox" style="width:auto" '+(p.multi?'checked':'')+
-        ' onchange="setPersonMulti('+i+',this.checked)" title="เช่น intern ที่ใช้หลายคน"></td>'+
-      '<td><button class="x" onclick="delPerson('+i+')">×</button></td></tr>';
-  }).join('');
+      '<td><button class="x" onclick="delPosition('+i+')">×</button></td></tr>';
+  }).join('')||'<tr><td colspan="6" class="empty">ยังไม่มีตำแหน่ง — กด "+ เพิ่มตำแหน่ง"</td></tr>';
   document.getElementById('taskPresetBody').innerHTML=DB.taskPresets.map(function(n,i){
     return '<tr><td class="w-name"><input value="'+esc(n)+'" oninput="setTaskPreset('+i+',this.value)"></td>'+
       '<td><button class="x" onclick="delTaskPreset('+i+')">×</button></td></tr>';
@@ -1378,21 +1387,16 @@ function renderSettings(){
   var aiEl=document.getElementById('setAiUrl'); if(aiEl) aiEl.value=DB.cfg.aiUrl||'';
   renderClients();
 }
-function setPerson(i,k,v){
-  DB.people[i][k]=(k==='name')?v:(Number(v)||0); save();
-  var tr=document.querySelectorAll('#peopleBody tr')[i];
+function setPosition(i,k,v){
+  DB.positions[i][k]=(k==='name')?v:(Number(v)||0); save();
+  var tr=document.querySelectorAll('#positionBody tr')[i];
   if(tr){ var td=tr.querySelectorAll('td');
-    td[3].textContent=money(salaryOh(DB.people[i]));
-    td[4].innerHTML='<b>'+money(dayRate(DB.people[i]))+'</b>'; }
+    td[3].textContent=money(salaryOh(DB.positions[i]));
+    td[4].innerHTML='<b>'+money(dayRate(DB.positions[i]))+'</b>'; }
   renderSheet(); calc();
 }
-function setPersonMulti(i,on){
-  DB.people[i].multi=!!on;
-  if(!on) cur.vars.forEach(function(v){ v.team.forEach(function(l){ if(l.pid===DB.people[i].id) l.n=1; }); });
-  save(); renderSheet(); calc();
-}
-function addPerson(){ DB.people.push({id:uid(),name:'คนใหม่',salary:30000,oh:DB.cfg.oh}); save(); renderSettings(); renderSheet(); }
-function delPerson(i){ DB.people.splice(i,1); save(); renderSettings(); renderSheet(); calc(); }
+function addPosition(){ DB.positions.push({id:uid(),name:'ตำแหน่งใหม่',salary:30000,oh:DB.cfg.oh}); save(); renderSettings(); renderSheet(); }
+function delPosition(i){ DB.positions.splice(i,1); save(); renderSettings(); renderSheet(); calc(); }
 function setPreset(kind,i,k,v){
   var arr=kind==='resp'?DB.respPresets:DB.otherPresets;
   arr[i][k]=(k==='name')?v:(Number(v)||0); save();
