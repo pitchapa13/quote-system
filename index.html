@@ -1200,14 +1200,16 @@ function fillTextTemplate(){
     '# อื่นๆ\ninterview, 250, 115\nanalysis/reporting, 40000, 1';
   toast('ใส่ตัวอย่างให้แล้ว — แก้ตัวเลขแล้วกด "สร้างตาราง"');
 }
-/* แปลงผล AI → เติมฟอร์ม (ตรรกะเดียวกับ parseQuoteText: ดึงราคาจาก preset ให้) */
+/* หาตำแหน่งจากชื่อ (ตรงเป๊ะก่อน ไม่งั้น substring) */
+function findPosByName(name){
+  var n=String(name||'').toLowerCase().trim();
+  return (DB.positions||[]).filter(function(p){return (p.name||'').toLowerCase()===n;})[0]
+      || (DB.positions||[]).filter(function(p){return n && (p.name||'').toLowerCase().indexOf(n)>=0;})[0]
+      || (DB.positions||[]).filter(function(p){return n && n.indexOf((p.name||'').toLowerCase())>=0;})[0];
+}
+/* แปลงผล AI → เติมฟอร์ม: tasks → ตาราง งาน×ตำแหน่ง (แต่ละงานกี่วันต่อตำแหน่ง) */
 function applyAiLines(data){
-  var v=V(); v.useAlloc=false;
-  var team=(data.team||[]).map(function(t){
-    var pos=(DB.positions||[]).filter(function(p){return (p.name||'').toLowerCase()===String(t.name||'').toLowerCase();})[0];
-    return {id:uid(), posId:pos?pos.id:'', cpd:pos?Math.round(dayRate(pos)):0,
-      n:(Number(t.people)||1), md:Number(t.days)||0};
-  });
+  var v=V();
   var resp=(data.resp||[]).map(function(r){
     var pr=DB.respPresets.filter(function(x){return (x.name||'').toLowerCase()===String(r.label||'').toLowerCase();})[0];
     var cph=(r.pricePerHead!=null&&r.pricePerHead!=='')?Number(r.pricePerHead):(pr?pr.price:0);
@@ -1218,11 +1220,40 @@ function applyAiLines(data){
     var price=(o.price!=null&&o.price!=='')?Number(o.price):(po?po.price:0);
     return {label:String(o.label||''), price:Number(price)||0, qty:Number(o.qty)||1};
   });
-  if(team.length)  v.team=team;
+  var nTasks=0;
+  if(data.tasks && data.tasks.length){
+    /* สร้างคอลัมน์ทีม 1 บรรทัดต่อ 1 ตำแหน่งที่ถูกอ้างถึง แล้วกรอกวันในตาราง alloc */
+    var byPos={}, team=[];
+    function lineFor(name){
+      var pos=findPosByName(name), key=pos?pos.id:('?'+String(name||'').toLowerCase());
+      if(byPos[key]) return byPos[key];
+      var line={id:uid(), posId:pos?pos.id:'', cpd:pos?Math.round(dayRate(pos)):0, n:1, md:0};
+      byPos[key]=line; team.push(line); return line;
+    }
+    var alloc=(data.tasks||[]).map(function(t){
+      var d={};
+      (t.assignments||[]).forEach(function(a){
+        var days=Number(a.days)||0; if(!days) return;
+        var line=lineFor(a.position);
+        d[line.id]=(d[line.id]||0)+days;
+      });
+      return {id:uid(), task:String(t.task||''), d:d};
+    });
+    if(team.length) v.team=team;
+    if(alloc.length){ v.alloc=alloc; v.useAlloc=true; }
+    nTasks=alloc.length;
+  } else if(data.team && data.team.length){
+    v.useAlloc=false;
+    v.team=data.team.map(function(t){
+      var pos=findPosByName(t.name);
+      return {id:uid(), posId:pos?pos.id:'', cpd:pos?Math.round(dayRate(pos)):0,
+        n:(Number(t.people)||1), md:Number(t.days)||0};
+    });
+  }
   if(resp.length)  v.resp=resp;
   if(other.length) v.other=other;
   renderAlloc(); renderSheet(); calc();
-  return {team:team.length, resp:resp.length, other:other.length};
+  return {tasks:nTasks, team:(v.team||[]).length, resp:resp.length, other:other.length};
 }
 function aiGenerate(){
   if(!cur) return;
@@ -1233,12 +1264,12 @@ function aiGenerate(){
   var btn=document.getElementById('aiBtn'), old=btn?btn.textContent:'';
   if(btn){ btn.disabled=true; btn.textContent='🤖 กำลังคิด...'; }
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:text, context:{people:DB.positions, respPresets:DB.respPresets, otherPresets:DB.otherPresets}})})
+    body:JSON.stringify({text:text, context:{people:DB.positions, taskPresets:DB.taskPresets, respPresets:DB.respPresets, otherPresets:DB.otherPresets}})})
   .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
   .then(function(res){
     if(!res.ok || res.d.error){ toast('AI: '+(res.d.error||('error '+'HTTP'))); return; }
     var n=applyAiLines(res.d);
-    toast('AI แตกฟอร์มให้แล้ว — ทีม '+n.team+' · RD '+n.resp+' · อื่นๆ '+n.other+' · ตรวจตัวเลขอีกที');
+    toast('AI แตกให้แล้ว — งาน '+n.tasks+' · ตำแหน่ง '+n.team+' · RD '+n.resp+' · อื่นๆ '+n.other+' · ตรวจอีกที');
   })
   .catch(function(e){ toast('เรียก AI ไม่ได้: '+e.message); })
   .then(function(){ if(btn){ btn.disabled=false; btn.textContent=old; } });
