@@ -146,7 +146,7 @@
       <button class="mini" onclick="genFromText()">สร้างตาราง (พิมพ์รายการ) ↓</button>
       <button class="btn" id="aiBtn" onclick="aiGenerate()">🤖 ให้ AI แตกให้ (พิมพ์อิสระ) ↓</button>
     </div>
-    <div class="muted" style="margin-top:6px">แทนที่เฉพาะหมวดที่มีในข้อความ (ทีม/RD/อื่นๆ) ของ variation ที่เปิดอยู่ · ปุ่ม AI ต้องตั้ง endpoint ในแท็บ "ตั้งค่าทีม / เรท" ก่อน</div>
+    <div class="muted" style="margin-top:6px">แทนที่เฉพาะหมวดที่มีในข้อความ (ทีม/RD/อื่นๆ) ของ variation ที่เปิดอยู่ · หลายทางเลือก: ขึ้นบรรทัด <b>== Option A ==</b> คั่นแต่ละ option (AI ก็แยก option ให้เองถ้าโจทย์บอกว่ามีหลายแบบ) · ปุ่ม AI ต้องตั้ง endpoint ในแท็บ "ตั้งค่าทีม / เรท" ก่อน</div>
   </div>
 
   <div class="card">
@@ -1151,10 +1151,11 @@ function parseFields(bare){
                .filter(function(n){ return !isNaN(n); });
   return {label:label, nums:nums};
 }
-function parseQuoteText(t){
+/* parse บล็อกเดียว (ชุดบรรทัด) → {team,resp,other} */
+function parseBlock(lines){
   var out={team:[],resp:[],other:[]}, sec='';
-  (t||'').split(/\r?\n/).forEach(function(raw){
-    var line=raw.replace(/\(.*?\)/g,'').trim();      /* ตัดคอมเมนต์ในวงเล็บทิ้ง */
+  lines.forEach(function(raw){
+    var line=String(raw).replace(/\(.*?\)/g,'').trim();      /* ตัดคอมเมนต์ในวงเล็บทิ้ง */
     if(!line) return;
     var bare=line.replace(/^#+\s*/,'').trim(), low=bare.toLowerCase();
     if(/^#/.test(line) || sectionOf(low)){ var s=sectionOf(low); if(s){ sec=s; return; } }
@@ -1182,9 +1183,35 @@ function parseQuoteText(t){
   });
   return out;
 }
+/* ทั้งข้อความ — ถ้ามีบรรทัดขึ้นต้น "==" = แยกหลาย option → {options:[...]} ไม่งั้น {team,resp,other} */
+function parseQuoteText(t){
+  var lines=String(t||'').split(/\r?\n/);
+  if(!lines.some(function(l){ return /^\s*==/.test(l); })) return parseBlock(lines);
+  var opts=[], curOpt=null;
+  lines.forEach(function(raw){
+    if(/^\s*==/.test(raw)){ var name=raw.replace(/^\s*=+\s*/,'').replace(/\s*=+\s*$/,'').trim();
+      curOpt={name:name, lines:[]}; opts.push(curOpt); return; }
+    if(curOpt) curOpt.lines.push(raw);
+  });
+  return { options: opts.map(function(o){ var b=parseBlock(o.lines); b.name=o.name; return b; }) };
+}
 function genFromText(){
   if(!cur){ return; }
   var p=parseQuoteText(document.getElementById('genText').value);
+  if(p.options){
+    var opts=p.options.filter(function(o){return o.team.length||o.resp.length||o.other.length;}).slice(0,MAXVAR);
+    if(!opts.length){ toast('ไม่พบรายการในข้อความ'); return; }
+    cur.vars=opts.map(function(o,idx){
+      var nv=newVar(o.name||('Option '+LETTERS[idx])); nv.useAlloc=false;
+      if(o.team.length)  nv.team=o.team;
+      if(o.resp.length)  nv.resp=o.resp;
+      if(o.other.length) nv.other=o.other;
+      return fixVar(nv);
+    });
+    vi=0; syncVarUI();
+    toast('สร้าง '+cur.vars.length+' ตัวเลือก (option) จากข้อความแล้ว');
+    return;
+  }
   if(!p.team.length && !p.resp.length && !p.other.length){ toast('ไม่พบรายการในข้อความ — กด "ใส่ตัวอย่างรูปแบบ" ดูได้'); return; }
   var v=V(); v.useAlloc=false;
   if(p.team.length)  v.team=p.team;
@@ -1236,9 +1263,8 @@ function findPreset(arr,name){
       || arr.filter(function(p){return (p.name||'') && n.indexOf((p.name||'').toLowerCase())>=0;})[0]
       || arr.filter(function(p){return n && (p.name||'').toLowerCase().indexOf(n)>=0;})[0];
 }
-/* แปลงผล AI → เติมฟอร์ม: tasks → ตาราง งาน×ตำแหน่ง (แต่ละงานกี่วันต่อตำแหน่ง) */
-function applyAiLines(data){
-  var v=V();
+/* เติม 1 variation จากข้อมูล AI (tasks → ตาราง งาน×ตำแหน่ง) — ไม่ render, คืนจำนวน task */
+function fillVarFromAi(v, data){
   var resp=(data.resp||[]).map(function(r){
     var pr=findPreset(DB.respPresets, r.label);
     var cph=(r.pricePerHead!=null&&r.pricePerHead!=='')?Number(r.pricePerHead):(pr?pr.price:0);
@@ -1251,7 +1277,6 @@ function applyAiLines(data){
   });
   var nTasks=0;
   if(data.tasks && data.tasks.length){
-    /* สร้างคอลัมน์ทีม 1 บรรทัดต่อ 1 ตำแหน่งที่ถูกอ้างถึง แล้วกรอกวันในตาราง alloc */
     var byPos={}, team=[];
     function lineFor(name){
       var pos=findPosByName(name), key=pos?pos.id:('?'+String(name||'').toLowerCase());
@@ -1263,8 +1288,7 @@ function applyAiLines(data){
       var d={};
       (t.assignments||[]).forEach(function(a){
         var days=Number(a.days)||0; if(!days) return;
-        var line=lineFor(a.position);
-        d[line.id]=(d[line.id]||0)+days;
+        d[lineFor(a.position).id]=(d[lineFor(a.position).id]||0)+days;
       });
       return {id:uid(), task:String(t.task||''), d:d};
     });
@@ -1281,8 +1305,23 @@ function applyAiLines(data){
   }
   if(resp.length)  v.resp=resp;
   if(other.length) v.other=other;
+  return nTasks;
+}
+/* แปลงผล AI → เติมฟอร์ม; ถ้า data.options มีหลายอัน สร้างหลาย variation */
+function applyAiLines(data){
+  var opts=(data.options && data.options.length)?data.options.slice(0,MAXVAR):null;
+  if(opts){
+    cur.vars=opts.map(function(opt,idx){
+      var nv=newVar(opt.name||('Option '+LETTERS[idx]));
+      fillVarFromAi(nv, opt);
+      return fixVar(nv);
+    });
+    vi=0; syncVarUI();
+    return {options:opts.length, tasks:0, team:0, resp:0, other:0};
+  }
+  var v=V(), nTasks=fillVarFromAi(v, data);
   renderAlloc(); renderSheet(); calc();
-  return {tasks:nTasks, team:(v.team||[]).length, resp:resp.length, other:other.length};
+  return {options:0, tasks:nTasks, team:(v.team||[]).length, resp:(v.resp||[]).length, other:(v.other||[]).length};
 }
 function aiGenerate(){
   if(!cur) return;
@@ -1301,7 +1340,8 @@ function aiGenerate(){
   .then(function(res){
     if(!res.ok || res.d.error){ toast('AI: '+(res.d.error||('HTTP error'))); return; }
     var n=applyAiLines(res.d);
-    toast('AI แตกให้แล้ว — งาน '+n.tasks+' · ตำแหน่ง '+n.team+' · RD '+n.resp+' · อื่นๆ '+n.other+' · ตรวจอีกที');
+    toast(n.options ? ('AI สร้าง '+n.options+' ตัวเลือก (option) ให้แล้ว · ตรวจอีกที')
+                    : ('AI แตกให้แล้ว — งาน '+n.tasks+' · ตำแหน่ง '+n.team+' · RD '+n.resp+' · อื่นๆ '+n.other+' · ตรวจอีกที'));
   })
   .catch(function(e){ toast('เรียก AI ไม่ได้: '+e.message); })
   .then(function(){ if(btn){ btn.disabled=false; btn.textContent=old; } });
