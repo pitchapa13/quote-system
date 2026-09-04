@@ -1288,15 +1288,18 @@ function aiGenerate(){
   if(!cur) return;
   var url=(DB.cfg.aiUrl||'').trim();
   if(!url){ toast('ยังไม่ได้ตั้ง AI endpoint — ไปที่แท็บ "ตั้งค่าทีม / เรท"'); showTab('set'); return; }
+  if(!/^https?:\/\//i.test(url)) url='https://'+url;   /* เติม https:// ให้ถ้าลืม */
   var text=(document.getElementById('genText').value||'').trim();
   if(!text){ toast('พิมพ์บรรยายงานก่อน'); return; }
   var btn=document.getElementById('aiBtn'), old=btn?btn.textContent:'';
   if(btn){ btn.disabled=true; btn.textContent='🤖 กำลังคิด...'; }
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({text:text, context:{people:DB.positions, taskPresets:DB.taskPresets, respPresets:DB.respPresets, otherPresets:DB.otherPresets, examples:buildExamples(5)}})})
-  .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+  .then(function(r){ return r.text().then(function(tx){
+      var d; try{ d=JSON.parse(tx); }catch(e){ d={error:'ตอบกลับไม่ใช่ JSON — เช็ค AI endpoint ให้เป็น URL worker เต็ม (https://...workers.dev)'}; }
+      return {ok:r.ok, d:d}; }); })
   .then(function(res){
-    if(!res.ok || res.d.error){ toast('AI: '+(res.d.error||('error '+'HTTP'))); return; }
+    if(!res.ok || res.d.error){ toast('AI: '+(res.d.error||('HTTP error'))); return; }
     var n=applyAiLines(res.d);
     toast('AI แตกให้แล้ว — งาน '+n.tasks+' · ตำแหน่ง '+n.team+' · RD '+n.resp+' · อื่นๆ '+n.other+' · ตรวจอีกที');
   })
